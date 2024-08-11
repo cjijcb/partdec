@@ -15,8 +15,11 @@ type downloadedFile struct {
 	os.File
 	Path string
 	Size int64
-} 
+}
 
+type client struct {
+	http.Client
+}
 
 func main() {
 
@@ -24,16 +27,18 @@ func main() {
 		Path: "file",
 	}
 	
+	dClient := &client{}
 
-	tr := &http.Transport{
-		MaxIdleConns:       16,
-		IdleConnTimeout:    60 * time.Second,
-		DisableCompression: true,
-	}
+	fmt.Printf("%+v\n", dClient.Transport)
 
-	client := &http.Client{Transport: tr}
+	dClient.setTransport()
 
-	rp, err := client.Get("http://example.com")
+	fmt.Println("\n")
+
+	fmt.Printf("%+v\n", dClient.Transport.(*http.Transport))
+
+
+	rp, err := dClient.Get("http://example.com")
 
         fmt.Println(err)
 
@@ -48,6 +53,19 @@ func main() {
 	dF.Size = fi.Size()
 
 	fmt.Println(dF.Size)
+}
+
+
+func (c *client) setTransport() {
+  
+	tr := &http.Transport{
+		MaxIdleConns:       16,
+		IdleConnTimeout:    60 * time.Second,
+		DisableCompression: true,
+	}
+	
+	c.Transport = tr
+
 }
 
 
