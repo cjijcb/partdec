@@ -2,11 +2,11 @@ package main
 
 
 import (
- "fmt"
-//  "io/fs"
+  "fmt"
+  "io"
   "os"
-//  "time"
-//  "net/http"
+  "time"
+  "net/http"
 
 )
 
@@ -24,27 +24,28 @@ func main() {
 		Path: "file",
 	}
 	
+
+	tr := &http.Transport{
+		MaxIdleConns:       16,
+		IdleConnTimeout:    60 * time.Second,
+		DisableCompression: true,
+	}
+
+	client := &http.Client{Transport: tr}
+
+	rp, err := client.Get("http://example.com")
+
+        fmt.Println(err)
+
+	b, err  := io.ReadAll(rp.Body)
+
+        fmt.Println(err)
+	
+  	os.WriteFile(dF.Path, b, 0666)
+
 	fi , _ := os.Stat(dF.Path)
 	
 	dF.Size = fi.Size()
-
-
-//	tr := &http.Transport{
-//		MaxIdleConns:       16,
-//		IdleConnTimeout:    60 * time.Second,
-//		DisableCompression: true,
-//	}
-//
-//	client := &http.Client{Transport: tr}
-//
-//	rp, _ := client.Get("http://example.com")
-//
-//        fmt.Println("Print Me!")
-//
-//	b, _  :=io.ReadAll(rp.Body)
-//
-//
-//  	os.WriteFile(dF.Path, b, 0666)
 
 	fmt.Println(dF.Size)
 }
