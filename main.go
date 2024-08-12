@@ -3,7 +3,8 @@ package main
 
 import (
   "fmt"
-  "io"
+  //"io"
+  "bufio"
   "os"
   "time"
   "net/http"
@@ -21,6 +22,9 @@ type client struct {
 	http.Client
 }
 
+
+type myResponse http.Response
+
 func main() {
 
 	dF := downloadedFile{
@@ -33,20 +37,19 @@ func main() {
 
 	fmt.Printf("%+v\n", (*dClient).Transport.(*http.Transport))
 
-
-	rp, err := dClient.Get("https://examplefile.com/file-download/48")
-	
-	fmt.Println(rp.Header)
-
-        fmt.Println(err)
-
-	//b, err  := io.ReadAll(rp.Body)
+	myResponse, _ := dClient.Get("https://examplefile.com/file-download/48")
 
 	dF.File, _ = os.Create(dF.Path)
 
-	io.Copy(dF.File, rp.Body)
+	nR  := bufio.NewReader(myResponse.Body)
 
-        fmt.Println(err)
+	nR.WriteTo(dF.File)
+
+
+
+	//io.Copy(dF.File, rp.Body)
+
+        //fmt.Println(err)
 	
   	//os.WriteFile(dF.Path, b, 0666)
 
@@ -57,6 +60,12 @@ func main() {
 	fmt.Println(dF.Size)
 }
 
+
+func (r myResponse) Read(p []byte) (n int, err error){
+	fmt.Println("this")
+	return 0, nil
+
+}
 
 func (c *client) setTransport() {
   
