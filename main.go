@@ -6,43 +6,68 @@ import (
 	"io"
 	"os"
 	"sync"
+	"bytes"
 )
-	
+
 
 func main() {
 
 
-	wg := sync.WaitGroup{}
+
+	wg := &sync.WaitGroup{}
 	
 	ch := connWorker(wg)
 
 	f, _ := os.Create("file")
     defer f.Close()
 
-	f.ReadFrom(<-ch)
+	//f.ReadFrom(<-ch)
 
 	for q := range ch {
-    	io.Copy(os.Stdout, q)
+		bf := bytes.NewBuffer(q)
+
+		bxf := io.TeeReader(bf, os.Stdout) 
+		f.ReadFrom(bxf)
 	}
+
 
 }
 
 
-func connWorker(wg sync.WaitGroup) chan io.Reader {
+func connWorker(wg *sync.WaitGroup) chan []byte {
 
-	ch := make(chan io.Reader)
+	ch := make(chan []byte)
+	
+
+	bf := make([]byte, 8)
+
+
+	req, _ := http.NewRequest("GET", "https://example.com", nil)
+    req.Proto = "http/2"
+    req.ProtoMajor = 2
+    req.ProtoMinor = 0
 
     ct := &http.Client{}
 
-	resp := &http.Response{}
+	//mu := &sync.Mutex{}
+	resp := &http.Response{} 
+
 
 	for i := 1; i<=4; i++ {
 		wg.Add(1)
-		go func(resp *http.Response, ct *http.Client) {
-			defer wg.Done()
-			resp, _ = ct.Get("https://example.com")
-			ch <- resp.Body
-		}(resp, ct)
+		go func() {
+			defer wg.Done()	
+
+			//mu.Lock()
+
+    		resp, _ = ct.Do(req)
+			
+			resp.Body.Read(bf)
+			ch <- bf
+
+			//mu.Unlock()
+
+		}()
 	}
 	
 	go func() {
