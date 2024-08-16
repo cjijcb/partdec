@@ -10,6 +10,13 @@ import (
 )
 
 
+type conn struct {
+	resp &http.Response{}
+	ct &http.Client{}
+	req &http.Request{} 
+}
+
+
 func main() {
 
 
@@ -21,7 +28,7 @@ func main() {
 	f, _ := os.Create("file")
     defer f.Close()
 
-	//f.ReadFrom(<-ch)
+	5//f.ReadFrom(<-ch)
 
 	for q := range ch {
 		bf := bytes.NewBuffer(q)
@@ -42,10 +49,6 @@ func connWorker(wg *sync.WaitGroup) chan []byte {
 	bf := make([]byte, 8)
 
 
-	req, _ := http.NewRequest("GET", "https://example.com", nil)
-    req.Proto = "http/2"
-    req.ProtoMajor = 2
-    req.ProtoMinor = 0
 
     ct := &http.Client{}
 
@@ -78,3 +81,24 @@ func connWorker(wg *sync.WaitGroup) chan []byte {
 	return ch
 
 }
+
+func buildReq() *http.Request {
+	req, _ := http.NewRequest("GET", "https://example.com", nil)
+    req.Proto = "http/2"
+    req.ProtoMajor = 2
+    req.ProtoMinor = 0
+	return &req
+}
+
+func buildClient() *http.Client {
+	tr := &http.Transport{
+		MaxIdleConns:	0,
+	}	
+	ct := &http.Client{Tansport: tr}
+	return &ct	
+}
+
+func doConn(ct *http.Client, req *http.Request) *http.Response {
+	resp := ct.Do(req)
+	return &resp
+}	
