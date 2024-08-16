@@ -6,99 +6,61 @@ import (
 	"io"
 	"os"
 	"sync"
-	"bytes"
+	//"bytes"
+	//"log"
 )
 
 
-type conn struct {
-	resp &http.Response{}
-	ct &http.Client{}
-	req &http.Request{} 
-}
+
+var wg sync.WaitGroup
 
 
 func main() {
 
 
+	chR := make(chan io.ReadCloser)
 
-	wg := &sync.WaitGroup{}
+	req := buildReq()
+	ct := buildClient()	
 	
-	ch := connWorker(wg)
 
-	f, _ := os.Create("file")
-    defer f.Close()
+	wg.Add(1)
 
-	5//f.ReadFrom(<-ch)
-
-	for q := range ch {
-		bf := bytes.NewBuffer(q)
-
-		bxf := io.TeeReader(bf, os.Stdout) 
-		f.ReadFrom(bxf)
-	}
-
-
+	go doConn(ct, req, chR)
+	go doWriteFile(chR)
+	
+	wg.Wait()
+	close(chR)
+	os.Exit(0)
 }
 
 
-func connWorker(wg *sync.WaitGroup) chan []byte {
-
-	ch := make(chan []byte)
-	
-
-	bf := make([]byte, 8)
-
-
-
-    ct := &http.Client{}
-
-	//mu := &sync.Mutex{}
-	resp := &http.Response{} 
-
-
-	for i := 1; i<=4; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()	
-
-			//mu.Lock()
-
-    		resp, _ = ct.Do(req)
-			
-			resp.Body.Read(bf)
-			ch <- bf
-
-			//mu.Unlock()
-
-		}()
-	}
-	
-	go func() {
-		wg.Wait()
-		close(ch)
-	}()
-
-	return ch
-
-}
 
 func buildReq() *http.Request {
 	req, _ := http.NewRequest("GET", "https://example.com", nil)
     req.Proto = "http/2"
     req.ProtoMajor = 2
     req.ProtoMinor = 0
-	return &req
+	return req
 }
 
 func buildClient() *http.Client {
 	tr := &http.Transport{
 		MaxIdleConns:	0,
 	}	
-	ct := &http.Client{Tansport: tr}
-	return &ct	
+	ct := &http.Client{Transport: tr}
+	return ct	
 }
 
-func doConn(ct *http.Client, req *http.Request) *http.Response {
-	resp := ct.Do(req)
-	return &resp
-}	
+func doConn(ct *http.Client, req *http.Request, chR chan io.ReadCloser) {
+	resp, _ := ct.Do(req)
+	defer resp.Body.Close()
+	chR <- resp.Body
+	wg.Wait()
+}
+
+
+func doWriteFile(chR chan io.ReadCloser) {
+	defer wg.Done()
+	io.CopyBuffer(os.Stdout, <-chR, make([]byte, 1024))
+}
