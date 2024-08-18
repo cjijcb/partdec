@@ -2,10 +2,11 @@ package main
 
 import (
     "net/http"
-    //"fmt"
+    "fmt"
 	"io"
 	"os"
 	"sync"
+	"time"
 	//"bytes"
 	//"log"
 )
@@ -14,6 +15,11 @@ import (
 
 var wg sync.WaitGroup
 
+type fileDL struct {
+	*os.File
+	activeWriter *int64
+	writeSIG	chan struct{}
+}
 
 func main() {
 
@@ -22,13 +28,20 @@ func main() {
 
 	req := buildReq()
 	ct := buildClient()	
-	f := buildFile("file.dat")
+
+	f := &fileDL{
+		File: buildFile("file.dat"),
+		activeWriter: new(int64),
+		writeSIG: make(chan struct{}),
+	}
 
 
-	wg.Add(1)
+	
+	wg.Add(3)
 
 	go doConn(ct, req, chR)
 	go doWriteFile(f,chR)
+	go doPrintDLProgress(f)
 	
 	wg.Wait()
 	close(chR)
@@ -38,7 +51,7 @@ func main() {
 
 func buildFile(p string) *os.File {
 
-    file, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0644)
+    file, err := os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
     if err != nil {
         panic(err)
     }
@@ -48,7 +61,7 @@ func buildFile(p string) *os.File {
 
 
 func buildReq() *http.Request {
-	req, _ := http.NewRequest("GET", "https://example.com", nil)
+	req, _ := http.NewRequest("GET", "http://examplefile.com/file-download/25", nil)
     req.Proto = "http/2"
     req.ProtoMajor = 2
     req.ProtoMinor = 0
@@ -64,15 +77,37 @@ func buildClient() *http.Client {
 }
 
 func doConn(ct *http.Client, req *http.Request, chR chan io.ReadCloser) {
+	defer wg.Done()
 	resp, _ := ct.Do(req)
-	defer resp.Body.Close()
+	//defer resp.Body.Close()
 	chR <- resp.Body
-	wg.Wait()
 }
 
 
-func doWriteFile(f *os.File, chR chan io.ReadCloser) {
+func doWriteFile(f *fileDL, chR chan io.ReadCloser) {
 	defer wg.Done()
-	f.ReadFrom(<-chR)
-	//io.CopyBuffer(os.Stdout, <-chR, make([]byte, 1024))
+	*f.activeWriter += 1
+	f.writeSIG <- struct{}{}
+	//f.ReadFrom(<-chR)
+	io.Copy(f, <-chR)
+	*f.activeWriter -= 1
+	f.Sync()
+}
+
+func getFileSize(f *fileDL) int64 {
+	fi, err := f.Stat()
+	if err != nil {
+		fmt.Println(err)
+	}
+	return fi.Size()
+}
+
+
+func doPrintDLProgress(f *fileDL) {
+	defer wg.Done()
+	<-f.writeSIG
+	for *f.activeWriter > 0 {
+		fmt.Println(getFileSize(f))
+		time.Sleep(50 * time.Millisecond)
+	}
 }
