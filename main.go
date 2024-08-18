@@ -22,18 +22,29 @@ func main() {
 
 	req := buildReq()
 	ct := buildClient()	
-	
+	f := buildFile("file.dat")
+
 
 	wg.Add(1)
 
 	go doConn(ct, req, chR)
-	go doWriteFile(chR)
+	go doWriteFile(f,chR)
 	
 	wg.Wait()
 	close(chR)
 	os.Exit(0)
 }
 
+
+func buildFile(p string) *os.File {
+
+    file, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+        panic(err)
+    }
+    //defer file.Close()
+	return file
+}
 
 
 func buildReq() *http.Request {
@@ -60,7 +71,8 @@ func doConn(ct *http.Client, req *http.Request, chR chan io.ReadCloser) {
 }
 
 
-func doWriteFile(chR chan io.ReadCloser) {
+func doWriteFile(f *os.File, chR chan io.ReadCloser) {
 	defer wg.Done()
-	io.CopyBuffer(os.Stdout, <-chR, make([]byte, 1024))
+	f.ReadFrom(<-chR)
+	//io.CopyBuffer(os.Stdout, <-chR, make([]byte, 1024))
 }
