@@ -47,8 +47,8 @@ func main() {
 
 	hd, cl := getHeaders(nc)
 
-	fmt.Println("c:",clh)
-	fmt.Println("hd:",hd.Get("Content-Disposition") )
+	fmt.Println("c:",cl)
+	fmt.Println("hd:",hd )
 
 	wg.Add(3)
 
@@ -74,10 +74,12 @@ func buildFile(p string) *os.File {
 
 
 func buildReq(method string) *http.Request {
-	req, _ := http.NewRequest(method, "http://examplefile.com/file-download/40", nil)
+	req, _ := http.NewRequest(method, "http://ipv4.download.thinkbroadband.com/10MB.zip", nil)
     req.Proto = "http/2"
     req.ProtoMajor = 2
     req.ProtoMinor = 0
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("User-Agent", "fssn/1.0.0")
 	return req
 }
 
