@@ -15,10 +15,17 @@ import (
 
 var wg sync.WaitGroup
 
+
+
+type netconn struct {
+	Client	*http.Client
+	Request	*http.Request
+}
+
 type fileDL struct {
 	*os.File
-	activeWriter *int64
-	writeSIG	chan struct{}
+	ActiveWriter *int64
+	WriteSIG	chan struct{}
 }
 
 func main() {
@@ -29,22 +36,25 @@ func main() {
 
 	f := &fileDL{
 		File: buildFile("file.dat"),
-		activeWriter: new(int64),
-		writeSIG: make(chan struct{}),
+		ActiveWriter: new(int64),
+		WriteSIG: make(chan struct{}),
 	}
 
-	ct := buildClient()	
-	req := buildReq("HEAD")
+	nc := &netconn{
+		Client: buildClient(),
+	}
 
-	clh := getContentLengthHeader(ct, req)
 
-	req = buildReq("GET")
+	hd, cl := getHeaders(nc)
+
+	fmt.Println("c:",clh)
+	fmt.Println("hd:",hd.Get("Content-Disposition") )
 
 	wg.Add(3)
 
-	go doConn(ct, req, chR)
+	go doConn(nc, chR)
 	go doWriteFile(f,chR)
-	go doPrintDLProgress(f, &clh)
+	go doPrintDLProgress(f, &cl)
 	
 	wg.Wait()
 	close(chR)
@@ -64,7 +74,7 @@ func buildFile(p string) *os.File {
 
 
 func buildReq(method string) *http.Request {
-	req, _ := http.NewRequest(method, "http://examplefile.com/file-download/25", nil)
+	req, _ := http.NewRequest(method, "http://examplefile.com/file-download/40", nil)
     req.Proto = "http/2"
     req.ProtoMajor = 2
     req.ProtoMinor = 0
@@ -79,26 +89,26 @@ func buildClient() *http.Client {
 	return ct	
 }
 
-func doConn(ct *http.Client, req *http.Request, chR chan io.ReadCloser) {
+func doConn(nc *netconn, chR chan io.ReadCloser) {
 	defer wg.Done()
-	resp, _ := ct.Do(req)
-	fmt.Println("CL:", resp.ContentLength)
+	nc.Request = buildReq("GET") 
+	resp, _ := nc.Client.Do(nc.Request)
 	//defer resp.Body.Close()
 	chR <- resp.Body
 }
 
-func getContentLengthHeader(ct *http.Client, req *http.Request) int64 {
-	resp, _ := ct.Do(req)
-	return resp.ContentLength
+func getHeaders(nc *netconn) (http.Header, int64) {
+	nc.Request = buildReq("HEAD") 
+	resp, _ := nc.Client.Do(nc.Request)
+	return resp.Header, resp.ContentLength
 }
 
 func doWriteFile(f *fileDL, chR chan io.ReadCloser) {
 	defer wg.Done()
-	*f.activeWriter += 1
-	f.writeSIG <- struct{}{}
-	//f.ReadFrom(<-chR)
+	*f.ActiveWriter += 1
+	f.WriteSIG <- struct{}{}
 	io.Copy(f, <-chR)
-	*f.activeWriter -= 1
+	*f.ActiveWriter -= 1
 	f.Sync()
 }
 
@@ -113,8 +123,8 @@ func getFileSize(f *fileDL) int64 {
 
 func doPrintDLProgress(f *fileDL, n *int64) {
 	defer wg.Done()
-	<-f.writeSIG
-	for *f.activeWriter > 0 {
+	<-f.WriteSIG
+	for *f.ActiveWriter > 0 {
 		fmt.Println(getFileSize(f), "/", *n)
 		time.Sleep(50 * time.Millisecond)
 	}
