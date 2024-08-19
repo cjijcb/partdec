@@ -26,8 +26,6 @@ func main() {
 
 	chR := make(chan io.ReadCloser)
 
-	req := buildReq()
-	ct := buildClient()	
 
 	f := &fileDL{
 		File: buildFile("file.dat"),
@@ -35,13 +33,18 @@ func main() {
 		writeSIG: make(chan struct{}),
 	}
 
+	ct := buildClient()	
+	req := buildReq("HEAD")
 
-	
+	clh := getContentLengthHeader(ct, req)
+
+	req = buildReq("GET")
+
 	wg.Add(3)
 
 	go doConn(ct, req, chR)
 	go doWriteFile(f,chR)
-	go doPrintDLProgress(f)
+	go doPrintDLProgress(f, &clh)
 	
 	wg.Wait()
 	close(chR)
@@ -60,8 +63,8 @@ func buildFile(p string) *os.File {
 }
 
 
-func buildReq() *http.Request {
-	req, _ := http.NewRequest("GET", "http://examplefile.com/file-download/25", nil)
+func buildReq(method string) *http.Request {
+	req, _ := http.NewRequest(method, "http://examplefile.com/file-download/25", nil)
     req.Proto = "http/2"
     req.ProtoMajor = 2
     req.ProtoMinor = 0
@@ -79,10 +82,15 @@ func buildClient() *http.Client {
 func doConn(ct *http.Client, req *http.Request, chR chan io.ReadCloser) {
 	defer wg.Done()
 	resp, _ := ct.Do(req)
+	fmt.Println("CL:", resp.ContentLength)
 	//defer resp.Body.Close()
 	chR <- resp.Body
 }
 
+func getContentLengthHeader(ct *http.Client, req *http.Request) int64 {
+	resp, _ := ct.Do(req)
+	return resp.ContentLength
+}
 
 func doWriteFile(f *fileDL, chR chan io.ReadCloser) {
 	defer wg.Done()
@@ -103,11 +111,11 @@ func getFileSize(f *fileDL) int64 {
 }
 
 
-func doPrintDLProgress(f *fileDL) {
+func doPrintDLProgress(f *fileDL, n *int64) {
 	defer wg.Done()
 	<-f.writeSIG
 	for *f.activeWriter > 0 {
-		fmt.Println(getFileSize(f))
+		fmt.Println(getFileSize(f), "/", *n)
 		time.Sleep(50 * time.Millisecond)
 	}
 }
