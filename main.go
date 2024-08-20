@@ -36,7 +36,7 @@ func main() {
 
 	chR := make(chan io.ReadCloser)
 
-	rawURL := "http://ipv4.download.thinkbroadband.com/20MB.zip"
+	rawURL := "http://examplefile.com/file-download/27"
 
 
 	f := &fileDL{
@@ -120,14 +120,15 @@ func buildClient() *http.Client {
 func doConn(nc *netconn, chR chan io.ReadCloser) {
 	defer wg.Done() 
 	resp, _ := nc.Client.Do(nc.Request)
+	fmt.Println(nc.Request)
 	//defer resp.Body.Close()
 	chR <- resp.Body
 }
 
 func getHeaders(nc *netconn) (http.Header, int64) {
-	newReq := nc.Request
+	newReq := *nc.Request
 	newReq.Method = "HEAD"
-	resp, _ := nc.Client.Do(newReq)
+	resp, _ := nc.Client.Do(&newReq)
 	return resp.Header, resp.ContentLength
 }
 
