@@ -2,11 +2,14 @@ package main
 
 import (
     "net/http"
+	"net/url"
     "fmt"
 	"io"
 	"os"
 	"sync"
 	"time"
+	"mime"
+	"path"
 	//"bytes"
 	//"log"
 )
@@ -33,6 +36,8 @@ func main() {
 
 	chR := make(chan io.ReadCloser)
 
+	rawURL := "http://ipv4.download.thinkbroadband.com/20MB.zip"
+
 
 	f := &fileDL{
 		File: buildFile("file.dat"),
@@ -42,13 +47,18 @@ func main() {
 
 	nc := &netconn{
 		Client: buildClient(),
+		Request: buildReq("GET", rawURL),
 	}
 
 
 	hd, cl := getHeaders(nc)
+	fln := buildFileName(rawURL, &hd)
 
 	fmt.Println("c:",cl)
-	fmt.Println("hd:",hd )
+	//fmt.Println("hd:", hd )
+	fmt.Println(fln)
+
+
 
 	wg.Add(3)
 
@@ -62,6 +72,22 @@ func main() {
 }
 
 
+
+func buildFileName(rawURL string, hdr *http.Header) string {
+	_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
+	fileName := params["filename"]
+
+	if fileName != "" {
+		return fileName
+	}
+
+	url, _ := url.Parse(rawURL)
+
+	fileName = path.Base(url.Path)
+	return fileName
+
+}
+
 func buildFile(p string) *os.File {
 
     file, err := os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
@@ -73,8 +99,8 @@ func buildFile(p string) *os.File {
 }
 
 
-func buildReq(method string) *http.Request {
-	req, _ := http.NewRequest(method, "http://ipv4.download.thinkbroadband.com/10MB.zip", nil)
+func buildReq(method string, rawURL string) *http.Request {
+	req, _ := http.NewRequest(method, rawURL, nil)
     req.Proto = "http/2"
     req.ProtoMajor = 2
     req.ProtoMinor = 0
@@ -92,16 +118,16 @@ func buildClient() *http.Client {
 }
 
 func doConn(nc *netconn, chR chan io.ReadCloser) {
-	defer wg.Done()
-	nc.Request = buildReq("GET") 
+	defer wg.Done() 
 	resp, _ := nc.Client.Do(nc.Request)
 	//defer resp.Body.Close()
 	chR <- resp.Body
 }
 
 func getHeaders(nc *netconn) (http.Header, int64) {
-	nc.Request = buildReq("HEAD") 
-	resp, _ := nc.Client.Do(nc.Request)
+	newReq := nc.Request
+	newReq.Method = "HEAD"
+	resp, _ := nc.Client.Do(newReq)
 	return resp.Header, resp.ContentLength
 }
 
