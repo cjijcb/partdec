@@ -1,77 +1,66 @@
 package main
 
 import (
-    "net/http"
-	"net/url"
-    "fmt"
+	"fmt"
 	"io"
+	"mime"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"sync"
 	"time"
-	"mime"
-	"path"
 	//"bytes"
 	//"log"
 )
 
-
-
 var wg sync.WaitGroup
 
-
-
-type netconn struct {
-	Client	*http.Client
-	Request	*http.Request
+type Netconn struct {
+	Client  *http.Client
+	Request *http.Request
 }
 
-type fileDL struct {
+type File struct {
 	*os.File
 	ActiveWriter *int64
-	WriteSIG	chan struct{}
+	WriteSIG     chan struct{}
 }
 
 func main() {
-
 
 	chR := make(chan io.ReadCloser)
 
 	rawURL := "http://examplefile.com/file-download/27"
 
+	nc := &Netconn{
+		Client:  buildClient(),
+		Request: buildReq(http.MethodGet, rawURL),
+	}
 
-	f := &fileDL{
-		File: buildFile("file.dat"),
+	headers, contentLength := getHeaders(nc)
+	fileName := buildFileName(rawURL, &headers)
+
+	file := &File{
+		File:         buildFile(fileName),
 		ActiveWriter: new(int64),
-		WriteSIG: make(chan struct{}),
+		WriteSIG:     make(chan struct{}),
 	}
 
-	nc := &netconn{
-		Client: buildClient(),
-		Request: buildReq("GET", rawURL),
-	}
-
-
-	hd, cl := getHeaders(nc)
-	fln := buildFileName(rawURL, &hd)
-
-	fmt.Println("c:",cl)
+	fmt.Println("c:", contentLength)
 	//fmt.Println("hd:", hd )
-	fmt.Println(fln)
-
-
+	fmt.Println(fileName)
 
 	wg.Add(3)
 
 	go doConn(nc, chR)
-	go doWriteFile(f,chR)
-	go doPrintDLProgress(f, &cl)
-	
+	go doWriteFile(file, chR)
+	go doPrintDLProgress(file, &contentLength)
+
 	wg.Wait()
 	close(chR)
 	os.Exit(0)
 }
-
-
 
 func buildFileName(rawURL string, hdr *http.Header) string {
 	_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
@@ -90,20 +79,19 @@ func buildFileName(rawURL string, hdr *http.Header) string {
 
 func buildFile(p string) *os.File {
 
-    file, err := os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
-    if err != nil {
-        panic(err)
-    }
-    //defer file.Close()
+	file, err := os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	if err != nil {
+		panic(err)
+	}
+	//defer file.Close()
 	return file
 }
 
-
 func buildReq(method string, rawURL string) *http.Request {
 	req, _ := http.NewRequest(method, rawURL, nil)
-    req.Proto = "http/2"
-    req.ProtoMajor = 2
-    req.ProtoMinor = 0
+	req.Proto = "http/2"
+	req.ProtoMajor = 2
+	req.ProtoMinor = 0
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", "fssn/1.0.0")
 	return req
@@ -111,28 +99,28 @@ func buildReq(method string, rawURL string) *http.Request {
 
 func buildClient() *http.Client {
 	tr := &http.Transport{
-		MaxIdleConns:	0,
-	}	
+		MaxIdleConns: 0,
+	}
 	ct := &http.Client{Transport: tr}
-	return ct	
+	return ct
 }
 
-func doConn(nc *netconn, chR chan io.ReadCloser) {
-	defer wg.Done() 
+func doConn(nc *Netconn, chR chan io.ReadCloser) {
+	defer wg.Done()
 	resp, _ := nc.Client.Do(nc.Request)
 	fmt.Println(nc.Request)
 	//defer resp.Body.Close()
 	chR <- resp.Body
 }
 
-func getHeaders(nc *netconn) (http.Header, int64) {
+func getHeaders(nc *Netconn) (http.Header, int64) {
 	newReq := *nc.Request
-	newReq.Method = "HEAD"
+	newReq.Method = http.MethodHead
 	resp, _ := nc.Client.Do(&newReq)
 	return resp.Header, resp.ContentLength
 }
 
-func doWriteFile(f *fileDL, chR chan io.ReadCloser) {
+func doWriteFile(f *File, chR chan io.ReadCloser) {
 	defer wg.Done()
 	*f.ActiveWriter += 1
 	f.WriteSIG <- struct{}{}
@@ -141,7 +129,7 @@ func doWriteFile(f *fileDL, chR chan io.ReadCloser) {
 	f.Sync()
 }
 
-func getFileSize(f *fileDL) int64 {
+func getFileSize(f *File) int64 {
 	fi, err := f.Stat()
 	if err != nil {
 		fmt.Println(err)
@@ -149,8 +137,7 @@ func getFileSize(f *fileDL) int64 {
 	return fi.Size()
 }
 
-
-func doPrintDLProgress(f *fileDL, n *int64) {
+func doPrintDLProgress(f *File, n *int64) {
 	defer wg.Done()
 	<-f.WriteSIG
 	for *f.ActiveWriter > 0 {
