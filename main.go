@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 	//"bytes"
-	//"log"
+	"log"
 )
 
 var wg sync.WaitGroup
@@ -21,7 +21,7 @@ type Netconn struct {
 	Request *http.Request
 }
 
-type File struct {
+type FileXtd struct {
 	*os.File
 	ActiveWriter *int64
 	WriteSIG     chan struct{}
@@ -31,21 +31,18 @@ func main() {
 
 	chR := make(chan io.ReadCloser)
 
-	rawURL := "http://examplefile.com/file-download/27"
+	fmt.Println(getRawURL(os.Args))
 
-	nc := &Netconn{
-		Client:  buildClient(),
-		Request: buildReq(http.MethodGet, rawURL),
-	}
+	rawURL := "http://ipv4.download.thinkbroadband.com/5MB.zip"
 
+	ct := buildClient()
+	req := buildReq(http.MethodGet, rawURL)
+
+	nc := buildNetconn(ct, req)
 	headers, contentLength := getHeaders(nc)
-	fileName := buildFileName(rawURL, &headers)
 
-	file := &File{
-		File:         buildFile(fileName),
-		ActiveWriter: new(int64),
-		WriteSIG:     make(chan struct{}),
-	}
+	fileName := buildFileName(rawURL, &headers)
+	file := buildFile(fileName)
 
 	fmt.Println("c:", contentLength)
 	//fmt.Println("hd:", hd )
@@ -60,6 +57,16 @@ func main() {
 	wg.Wait()
 	close(chR)
 	os.Exit(0)
+
+}
+
+func buildNetconn(ct *http.Client, req *http.Request) *Netconn {
+	nc := &Netconn{
+		Client:  ct,
+		Request: req,
+	}
+
+	return nc
 }
 
 func buildFileName(rawURL string, hdr *http.Header) string {
@@ -77,11 +84,16 @@ func buildFileName(rawURL string, hdr *http.Header) string {
 
 }
 
-func buildFile(p string) *os.File {
+func buildFile(name string) *FileXtd {
 
-	file, err := os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
-	if err != nil {
-		panic(err)
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	
+	handle(&err)
+
+	file := &FileXtd{
+		File:         f,
+		ActiveWriter: new(int64),
+		WriteSIG:     make(chan struct{}),
 	}
 	//defer file.Close()
 	return file
@@ -89,9 +101,9 @@ func buildFile(p string) *os.File {
 
 func buildReq(method string, rawURL string) *http.Request {
 	req, _ := http.NewRequest(method, rawURL, nil)
-	req.Proto = "http/2"
-	req.ProtoMajor = 2
-	req.ProtoMinor = 0
+	req.Proto = "http/1.1"
+	req.ProtoMajor = 1
+	req.ProtoMinor = 1
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", "fssn/1.0.0")
 	return req
@@ -107,7 +119,8 @@ func buildClient() *http.Client {
 
 func doConn(nc *Netconn, chR chan io.ReadCloser) {
 	defer wg.Done()
-	resp, _ := nc.Client.Do(nc.Request)
+	resp, err := nc.Client.Do(nc.Request)
+	handle(&err)
 	fmt.Println(nc.Request)
 	//defer resp.Body.Close()
 	chR <- resp.Body
@@ -120,7 +133,7 @@ func getHeaders(nc *Netconn) (http.Header, int64) {
 	return resp.Header, resp.ContentLength
 }
 
-func doWriteFile(f *File, chR chan io.ReadCloser) {
+func doWriteFile(f *FileXtd, chR chan io.ReadCloser) {
 	defer wg.Done()
 	*f.ActiveWriter += 1
 	f.WriteSIG <- struct{}{}
@@ -129,7 +142,7 @@ func doWriteFile(f *File, chR chan io.ReadCloser) {
 	f.Sync()
 }
 
-func getFileSize(f *File) int64 {
+func getFileSize(f *FileXtd) int64 {
 	fi, err := f.Stat()
 	if err != nil {
 		fmt.Println(err)
@@ -137,11 +150,21 @@ func getFileSize(f *File) int64 {
 	return fi.Size()
 }
 
-func doPrintDLProgress(f *File, n *int64) {
+func doPrintDLProgress(f *FileXtd, n *int64) {
 	defer wg.Done()
 	<-f.WriteSIG
 	for *f.ActiveWriter > 0 {
 		fmt.Println(getFileSize(f), "/", *n)
 		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func getRawURL(a []string) string {
+	return a[len(a)-1]
+}
+
+func handle(err *error) {
+	if *err != nil {
+		log.Println(*err)
 	}
 }
