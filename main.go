@@ -41,10 +41,13 @@ func main() {
 	nc := buildNetconn(ct, req)
 	headers, contentLength := getHeaders(nc)
 
-	buildBytePartition(contentLength, 3)
+	fmt.Println(buildBytePartition(contentLength, 3))
 
 	fileName := buildFileName(rawURL, &headers)
 	file := buildFile(fileName)
+
+	fmt.Println(doAddSuffix(fileName, 1))
+	
 
 	//fmt.Println("c:", contentLength)
 	//fmt.Println("hd:", hd )
@@ -174,11 +177,12 @@ func doHandle(err *error) {
 }
 
 
-func buildBytePartition(byteCount int64, parts int) {
+func buildBytePartition(byteCount int64, parts int) map[int]string {
+
+	m := make(map[int]string)
 
     // +1 because zero is included
 	partSize := int(byteCount + 1) / parts
-
     for i, j := 1, 0; i <= parts; i, j = i+1, j+partSize {
 
         lowerbound := j
@@ -187,9 +191,15 @@ func buildBytePartition(byteCount int64, parts int) {
             upperbound = int(byteCount)
         }
 
-        r := fmt.Sprintf("bytes=%v-%v", lowerbound, upperbound)
-        fmt.Println(r)
+		mk := i
+        mv := fmt.Sprintf("%v-%v", lowerbound, upperbound)
+		m[mk] = mv
 
     }
+	return m
 
-} 
+}
+
+func doAddSuffix (s string, index int) string {
+	return fmt.Sprintf("%v_%v", s, index)
+}
