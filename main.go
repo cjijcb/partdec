@@ -23,7 +23,7 @@ type Netconn struct {
 
 type FileXtd struct {
 	*os.File
-	ActiveWriter *int64
+	ActiveWriter *int
 	WriteSIG     chan struct{}
 }
 
@@ -99,7 +99,7 @@ func buildFile(name string) *FileXtd {
 
 	file := &FileXtd{
 		File:         f,
-		ActiveWriter: new(int64),
+		ActiveWriter: new(int),
 		WriteSIG:     make(chan struct{}),
 	}
 	//defer file.Close()
@@ -144,12 +144,19 @@ func getHeaders(nc *Netconn) (http.Header, int64) {
 
 func doWriteFile(f *FileXtd, chR chan io.ReadCloser) {
 	defer wg.Done()
-	*f.ActiveWriter += 1
+	//*f.ActiveWriter += 1
+	f.addWriter(1)
 	f.WriteSIG <- struct{}{}
 	io.Copy(f, <-chR)
-	*f.ActiveWriter -= 1
+	f.addWriter(-1)
+	//*f.ActiveWriter -= 1
 	f.Sync()
 }
+
+func (f *FileXtd) addWriter(n int) {
+	*f.ActiveWriter += n
+}
+
 
 func getFileSize(f *FileXtd) int64 {
 	fi, err := f.Stat()
