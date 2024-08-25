@@ -44,19 +44,35 @@ func main() {
 	fmt.Println(buildBytePartition(contentLength, 3))
 
 	fileName := buildFileName(rawURL, &headers)
-	file := buildFile(fileName)
+
+	//file := buildFile(fileName)
+
+	file := make(map[int]*FileXtd)
 
 	fmt.Println(doAddSuffix(fileName, 1))
-	
 
 	//fmt.Println("c:", contentLength)
 	//fmt.Println("hd:", hd )
 	//fmt.Println(fileName)
 
-	wg.Add(3)
+	partitionMap := buildBytePartition(contentLength, 3)
 
-	go doConn(nc, chR)
-	go doWriteFile(file, chR)
+	for v := 1; v <= 3; v++ {
+
+		byteRange := fmt.Sprintf("bytes=%s", partitionMap[v])
+
+		req.Header.Set("Range", byteRange)
+		nc := buildNetconn(ct, req)
+		fileNameWithSuffix := doAddSuffix(fileName, v)
+		file[v] = buildFile(fileNameWithSuffix)
+
+		wg.Add(2)
+		go doConn(nc, chR)
+		go doWriteFile(file[v], chR)
+
+	}
+
+	wg.Add(1)
 	go doPrintDLProgress(file, &contentLength)
 
 	wg.Wait()
@@ -75,8 +91,8 @@ func buildNetconn(ct *http.Client, req *http.Request) *Netconn {
 }
 
 func buildFileName(rawURL string, hdr *http.Header) string {
-	_, params, err := mime.ParseMediaType(hdr.Get("Content-Disposition"))
-	doHandle(&err)
+	_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
+	//doHandle(&err)
 	fileName := params["filename"]
 
 	if fileName != "" {
@@ -94,7 +110,7 @@ func buildFileName(rawURL string, hdr *http.Header) string {
 func buildFile(name string) *FileXtd {
 
 	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
-	
+
 	doHandle(&err)
 
 	file := &FileXtd{
@@ -144,12 +160,10 @@ func getHeaders(nc *Netconn) (http.Header, int64) {
 
 func doWriteFile(f *FileXtd, chR chan io.ReadCloser) {
 	defer wg.Done()
-	//*f.ActiveWriter += 1
 	f.addWriter(1)
 	f.WriteSIG <- struct{}{}
 	io.Copy(f, <-chR)
 	f.addWriter(-1)
-	//*f.ActiveWriter -= 1
 	f.Sync()
 }
 
@@ -157,20 +171,35 @@ func (f *FileXtd) addWriter(n int) {
 	*f.ActiveWriter += n
 }
 
-
 func getFileSize(f *FileXtd) int64 {
 	fi, err := f.Stat()
 	doHandle(&err)
 	return fi.Size()
 }
 
-func doPrintDLProgress(f *FileXtd, n *int64) {
+func doPrintDLProgress(fm map[int]*FileXtd, n *int64) {
 	defer wg.Done()
-	<-f.WriteSIG
-	for *f.ActiveWriter > 0 {
-		fmt.Println(getFileSize(f), "/", *n)
+
+	for _, v := range fm {
+		<-v.WriteSIG
+	}
+
+	for getTotalWriter(fm) > 0 {
+		for _, v := range fm {
+			fmt.Println(getFileSize(v), "/", *n)
+		}
 		time.Sleep(50 * time.Millisecond)
 	}
+
+}
+
+func getTotalWriter(fm map[int]*FileXtd) int {
+	totalWriter := 0
+	for _, v := range fm {
+		totalWriter += *v.ActiveWriter
+	}
+	return totalWriter
+
 }
 
 func getRawURL(a []string) string {
@@ -179,34 +208,33 @@ func getRawURL(a []string) string {
 
 func doHandle(err *error) {
 	if *err != nil {
-		log.Println(*err)
+		log.Fatal(*err)
 	}
 }
-
 
 func buildBytePartition(byteCount int64, parts int) map[int]string {
 
 	m := make(map[int]string)
 
-    // +1 because zero is included
-	partSize := int(byteCount + 1) / parts
-    for i, j := 1, 0; i <= parts; i, j = i+1, j+partSize {
+	// +1 because zero is included
+	partSize := int(byteCount+1) / parts
+	for i, j := 1, 0; i <= parts; i, j = i+1, j+partSize {
 
-        lowerbound := j
-        upperbound := lowerbound + partSize - 1
-        if i == parts {
-            upperbound = int(byteCount)
-        }
+		lowerbound := j
+		upperbound := lowerbound + partSize - 1
+		if i == parts {
+			upperbound = int(byteCount)
+		}
 
 		mk := i
-        mv := fmt.Sprintf("%v-%v", lowerbound, upperbound)
+		mv := fmt.Sprintf("%v-%v", lowerbound, upperbound)
 		m[mk] = mv
 
-    }
+	}
 	return m
 
 }
 
-func doAddSuffix (s string, index int) string {
+func doAddSuffix(s string, index int) string {
 	return fmt.Sprintf("%v_%v", s, index)
 }
