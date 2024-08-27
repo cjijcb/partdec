@@ -3,15 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
-	"net/url"
 	"os"
-	"path"
 	"sync"
 	"time"
 	//"bytes"
-	"log"
+	"runtime"
 )
 
 var wg sync.WaitGroup
@@ -21,13 +18,10 @@ type Netconn struct {
 	Request *http.Request
 }
 
-type FileXtd struct {
-	*os.File
-	ActiveWriter *int
-	WriteSIG     chan struct{}
-}
 
 func main() {
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	chR := make(chan io.ReadCloser)
 
@@ -47,7 +41,7 @@ func main() {
 
 	//file := buildFile(fileName)
 
-	file := make(map[int]*FileXtd)
+	files := make([]*FileXtd,3)
 
 	fmt.Println(doAddSuffix(fileName, 1))
 
@@ -57,23 +51,23 @@ func main() {
 
 	partitionMap := buildBytePartition(contentLength, 3)
 
-	for v := 1; v <= 3; v++ {
+	for v := range 3 {
 
 		byteRange := fmt.Sprintf("bytes=%s", partitionMap[v])
 
 		req.Header.Set("Range", byteRange)
 		nc := buildNetconn(ct, req)
 		fileNameWithSuffix := doAddSuffix(fileName, v)
-		file[v] = buildFile(fileNameWithSuffix)
+		files[v] = buildFile(fileNameWithSuffix)
 
 		wg.Add(2)
 		go doConn(nc, chR)
-		go doWriteFile(file[v], chR)
+		go doWriteFile(files[v], chR)
 
 	}
 
 	wg.Add(1)
-	go doPrintDLProgress(file, &contentLength)
+	go doPrintDLProgress(files, &contentLength)
 
 	wg.Wait()
 	close(chR)
@@ -90,37 +84,6 @@ func buildNetconn(ct *http.Client, req *http.Request) *Netconn {
 	return nc
 }
 
-func buildFileName(rawURL string, hdr *http.Header) string {
-	_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
-	//doHandle(&err)
-	fileName := params["filename"]
-
-	if fileName != "" {
-		return fileName
-	}
-
-	url, err := url.Parse(rawURL)
-	doHandle(&err)
-
-	fileName = path.Base(url.Path)
-	return fileName
-
-}
-
-func buildFile(name string) *FileXtd {
-
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
-
-	doHandle(&err)
-
-	file := &FileXtd{
-		File:         f,
-		ActiveWriter: new(int),
-		WriteSIG:     make(chan struct{}),
-	}
-	//defer file.Close()
-	return file
-}
 
 func buildReq(method string, rawURL string) *http.Request {
 	req, err := http.NewRequest(method, rawURL, nil)
@@ -158,34 +121,16 @@ func getHeaders(nc *Netconn) (http.Header, int64) {
 	return resp.Header, resp.ContentLength
 }
 
-func doWriteFile(f *FileXtd, chR chan io.ReadCloser) {
-	defer wg.Done()
-	f.addWriter(1)
-	f.WriteSIG <- struct{}{}
-	io.Copy(f, <-chR)
-	f.addWriter(-1)
-	f.Sync()
-}
 
-func (f *FileXtd) addWriter(n int) {
-	*f.ActiveWriter += n
-}
-
-func getFileSize(f *FileXtd) int64 {
-	fi, err := f.Stat()
-	doHandle(&err)
-	return fi.Size()
-}
-
-func doPrintDLProgress(fm map[int]*FileXtd, n *int64) {
+func doPrintDLProgress(fs []*FileXtd, n *int64) {
 	defer wg.Done()
 
-	for _, v := range fm {
+	for _, v := range fs {
 		<-v.WriteSIG
 	}
 
-	for getTotalWriter(fm) > 0 {
-		for _, v := range fm {
+	for getTotalWriter(fs) > 0 {
+		for _, v := range fs {
 			fmt.Println(getFileSize(v), "/", *n)
 		}
 		time.Sleep(50 * time.Millisecond)
@@ -193,32 +138,19 @@ func doPrintDLProgress(fm map[int]*FileXtd, n *int64) {
 
 }
 
-func getTotalWriter(fm map[int]*FileXtd) int {
-	totalWriter := 0
-	for _, v := range fm {
-		totalWriter += *v.ActiveWriter
-	}
-	return totalWriter
-
-}
 
 func getRawURL(a []string) string {
 	return a[len(a)-1]
 }
 
-func doHandle(err *error) {
-	if *err != nil {
-		log.Fatal(*err)
-	}
-}
 
-func buildBytePartition(byteCount int64, parts int) map[int]string {
+func buildBytePartition(byteCount int64, parts int) []string {
 
-	m := make(map[int]string)
+	s := make([]string, parts)
 
 	// +1 because zero is included
 	partSize := int(byteCount+1) / parts
-	for i, j := 1, 0; i <= parts; i, j = i+1, j+partSize {
+	for i, j := 0, 0; i < parts; i, j = i+1, j+partSize {
 
 		lowerbound := j
 		upperbound := lowerbound + partSize - 1
@@ -226,12 +158,10 @@ func buildBytePartition(byteCount int64, parts int) map[int]string {
 			upperbound = int(byteCount)
 		}
 
-		mk := i
-		mv := fmt.Sprintf("%v-%v", lowerbound, upperbound)
-		m[mk] = mv
+		s[i] = fmt.Sprintf("%v-%v", lowerbound, upperbound)
 
 	}
-	return m
+	return s
 
 }
 
