@@ -4,74 +4,83 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	//"os"
 	"sync"
 	"time"
 	//"bytes"
-	"runtime"
+	////"runtime"
 )
 
-var wg sync.WaitGroup
-
+type Download struct {
+	*Netconn
+	Files []*FileXtd
+	IOch  chan io.ReadCloser
+	URI   string
+	WG    *sync.WaitGroup
+}
 
 func main() {
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	const FileNumParts int = 3
+	URI := "http://ipv4.download.thinkbroadband.com/5MB.zip"
 
-	chR := make(chan io.ReadCloser)
-
-	//fmt.Println(getRawURL(os.Args))
-
-	rawURL := "http://ipv4.download.thinkbroadband.com/5MB.zip"
-
-	ct := buildClient()
-	req := buildReq(http.MethodGet, rawURL)
-
-	nc := buildNetconn(ct, req)
-	headers, contentLength := getHeaders(nc)
-
-	fmt.Println(buildBytePartition(contentLength, 3))
-
-	fileName := buildFileName(rawURL, &headers)
-
-	//file := buildFile(fileName)
-
-	files := make([]*FileXtd,3)
-
-	fmt.Println(doAddSuffix(fileName, 1))
-
-	//fmt.Println("c:", contentLength)
-	//fmt.Println("hd:", hd )
-	//fmt.Println(fileName)
-
-	partitionMap := buildBytePartition(contentLength, 3)
-
-	for v := range 3 {
-
-		byteRange := fmt.Sprintf("bytes=%s", partitionMap[v])
-
-		req.Header.Set("Range", byteRange)
-		nc := buildNetconn(ct, req)
-		fileNameWithSuffix := doAddSuffix(fileName, v)
-		files[v] = buildFile(fileNameWithSuffix)
-
-		wg.Add(2)
-		go doConn(nc, chR)
-		go doWriteFile(files[v], chR)
-
-	}
-
-	wg.Add(1)
-	go doPrintDLProgress(files, &contentLength)
-
-	wg.Wait()
-	close(chR)
-	os.Exit(0)
+	d := buildDownload(FileNumParts, URI)
+	d.Start()
 
 }
 
+func (d *Download) Start() {
 
-func doPrintDLProgress(fs []*FileXtd, n *int64) {
+	FileNumParts := len(d.Files)
+	headers, contentLength := d.Netconn.getRespHeaders()
+	fileName := buildFileName(d.URI, &headers)
+	partitionMap := buildBytePartition(int(contentLength), FileNumParts)
+
+	for v := range FileNumParts {
+
+		byteRange := fmt.Sprintf("bytes=%s", partitionMap[v])
+		d.Request.Header.Set("Range", byteRange)
+		d.Netconn = buildNetconn(d.Client, d.Request)
+		fileNameWithSuffix := doAddSuffix(fileName, v)
+		d.Files[v] = buildFile(fileNameWithSuffix)
+
+		d.WG.Add(2)
+		go doConn(d.Netconn, d.IOch, d.WG)
+		go doWriteFile(d.Files[v], d.IOch, d.WG)
+
+	}
+
+	d.WG.Add(1)
+	go doPrintDLProgress(d.Files, &contentLength, d.WG)
+
+	d.WG.Wait()
+	close(d.IOch)
+
+}
+
+func buildDownload(fnp int, uri string) *Download {
+
+	var wg sync.WaitGroup
+	ch := make(chan io.ReadCloser)
+
+	ct := buildClient()
+	req := buildReq(http.MethodGet, uri)
+	nc := buildNetconn(ct, req)
+
+	files := make([]*FileXtd, fnp)
+
+	d := &Download{
+		Netconn: nc,
+		Files:   files,
+		IOch:    ch,
+		URI:     uri,
+		WG:      &wg,
+	}
+
+	return d
+}
+
+func doPrintDLProgress(fs []*FileXtd, n *int64, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for _, v := range fs {
@@ -87,24 +96,22 @@ func doPrintDLProgress(fs []*FileXtd, n *int64) {
 
 }
 
-
 func getRawURL(a []string) string {
 	return a[len(a)-1]
 }
 
-
-func buildBytePartition(byteCount int64, parts int) []string {
+func buildBytePartition(byteCount int, parts int) []string {
 
 	s := make([]string, parts)
 
 	// +1 because zero is included
-	partSize := int(byteCount+1) / parts
+	partSize := (byteCount + 1) / parts
 	for i, j := 0, 0; i < parts; i, j = i+1, j+partSize {
 
 		lowerbound := j
 		upperbound := lowerbound + partSize - 1
 		if i == parts {
-			upperbound = int(byteCount)
+			upperbound = byteCount
 		}
 
 		s[i] = fmt.Sprintf("%v-%v", lowerbound, upperbound)
