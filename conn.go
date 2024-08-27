@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"errors"
 )
 
 type Netconn struct {
@@ -22,12 +23,12 @@ func buildNetconn(ct *http.Client, req *http.Request) *Netconn {
 
 func buildReq(method string, rawURL string) *http.Request {
 	req, err := http.NewRequest(method, rawURL, nil)
-	doHandle(&err)
+	doHandle(err)
 	req.Proto = "http/2.0"
 	req.ProtoMajor = 2
 	req.ProtoMinor = 0
 	req.Header.Set("Accept", "*/*")
-	req.Header.Set("User-Agent", "curl/8.9.1")
+	req.Header.Set("User-Agent", "fssn/1.0.0")
 	return req
 }
 
@@ -42,7 +43,12 @@ func buildClient() *http.Client {
 func doConn(nc *Netconn, chR chan io.ReadCloser, wg *sync.WaitGroup) {
 	defer wg.Done()
 	resp, err := nc.Client.Do(nc.Request)
-	doHandle(&err)
+	doHandle(err)
+
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299)  {
+		doHandle(errors.New(resp.Status))
+	}
+
 	//defer resp.Body.Close()
 	chR <- resp.Body
 }

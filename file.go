@@ -25,7 +25,7 @@ func buildFileName(rawURL string, hdr *http.Header) string {
 	}
 
 	url, err := url.Parse(rawURL)
-	doHandle(&err)
+	doHandle(err)
 
 	fileName = path.Base(url.Path)
 	return fileName
@@ -36,7 +36,7 @@ func buildFile(name string) *FileXtd {
 
 	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
 
-	doHandle(&err)
+	doHandle(err)
 
 	file := &FileXtd{
 		File:         f,
@@ -62,7 +62,7 @@ func (f *FileXtd) addWriter(n int) {
 
 func getFileSize(f *FileXtd) int64 {
 	fi, err := f.Stat()
-	doHandle(&err)
+	doHandle(err)
 	return fi.Size()
 }
 
