@@ -10,10 +10,18 @@ import (
 	"sync"
 )
 
+type byteOffsetStart = int
+type byteOffsetEnd = int
+
+
+type FileIOs []*FileXtd
+
 type FileXtd struct {
 	*os.File
 	ActiveWriter *int
 	WriteSIG     chan struct{}
+	bOffS	byteOffsetStart
+	bOffE	byteOffsetEnd
 }
 
 func buildFileName(rawURL string, hdr *http.Header) string {
@@ -34,7 +42,7 @@ func buildFileName(rawURL string, hdr *http.Header) string {
 
 func buildFile(name string) *FileXtd {
 
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 
 	doHandle(err)
 
@@ -53,24 +61,46 @@ func doWriteFile(f *FileXtd, chR chan io.ReadCloser, wg *sync.WaitGroup) {
 	f.WriteSIG <- struct{}{}
 	io.Copy(f, <-chR)
 	f.addWriter(-1)
-	f.Sync()
+	//f.Sync()
 }
 
 func (f *FileXtd) addWriter(n int) {
 	*f.ActiveWriter += n
 }
 
-func getFileSize(f *FileXtd) int64 {
+func (f *FileXtd) getSize() int64 {
 	fi, err := f.Stat()
 	doHandle(err)
 	return fi.Size()
 }
 
-func getTotalWriter(fs []*FileXtd) int {
+func (fs FileIOs) getTotalWriter() int {
 	totalWriter := 0
-	for _, v := range fs {
-		totalWriter += *v.ActiveWriter
+	for _, f := range fs {
+		totalWriter += *f.ActiveWriter
 	}
 	return totalWriter
+}
+
+
+func (fs FileIOs) setByteOffsetRange(byteCount int) {
+
+	parts := len(fs)
+
+    // +1 because zero is included
+    partSize := (byteCount + 1) / parts
+    for i, j := 0, 0; i < parts; i, j = i+1, j+partSize {
+
+        lowerbound := j
+        upperbound := lowerbound + partSize - 1
+        if i == parts {
+            upperbound = byteCount
+        }
+		
+		fs[i].bOffS = lowerbound
+
+		fs[i].bOffE = upperbound
+
+    }
 
 }

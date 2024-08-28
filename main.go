@@ -13,10 +13,11 @@ import (
 
 type Download struct {
 	*Netconn
-	Files []*FileXtd
+	Files FileIOs
 	IOch  chan io.ReadCloser
 	URI   string
 	WG    *sync.WaitGroup
+	DataSize int
 }
 
 func main() {
@@ -32,17 +33,15 @@ func main() {
 func (d *Download) Start() {
 
 	FileNumParts := len(d.Files)
-	headers, contentLength := d.Netconn.getRespHeaders()
-	fileName := buildFileName(d.URI, &headers)
-	partitionMap := buildBytePartition(int(contentLength), FileNumParts)
 
+	d.Files.setByteOffsetRange(d.DataSize)
+	
 	for v := range FileNumParts {
+		
 
-		byteRange := fmt.Sprintf("bytes=%s", partitionMap[v])
+		byteRange := fmt.Sprintf("bytes=%d-%d", d.Files[v].bOffS, d.Files[v].bOffE)
+
 		d.Request.Header.Set("Range", byteRange)
-		d.Netconn = buildNetconn(d.Client, d.Request)
-		fileNameWithSuffix := doAddSuffix(fileName, v)
-		d.Files[v] = buildFile(fileNameWithSuffix)
 
 		d.WG.Add(2)
 		go doConn(d.Netconn, d.IOch, d.WG)
@@ -50,8 +49,9 @@ func (d *Download) Start() {
 
 	}
 
+	
 	d.WG.Add(1)
-	go doPrintDLProgress(d.Files, &contentLength, d.WG)
+	go doPrintDLProgress(d.Files, d.WG)
 
 	d.WG.Wait()
 	close(d.IOch)
@@ -60,36 +60,46 @@ func (d *Download) Start() {
 
 func buildDownload(fnp int, uri string) *Download {
 
-	var wg sync.WaitGroup
 	ch := make(chan io.ReadCloser)
 
 	ct := buildClient()
 	req := buildReq(http.MethodGet, uri)
 	nc := buildNetconn(ct, req)
 
-	files := make([]*FileXtd, fnp)
+	headers, contentLength := nc.getRespHeaders()
+	
+	fileName := buildFileName(uri, &headers)
+
+	var files FileIOs = make([]*FileXtd, fnp)
+
+	for i := range files {
+		fileNameWithSuffix := doAddSuffix(fileName, i)
+		files[i] = buildFile(fileNameWithSuffix)
+	}
 
 	d := &Download{
 		Netconn: nc,
 		Files:   files,
 		IOch:    ch,
 		URI:     uri,
-		WG:      &wg,
+		WG:      &sync.WaitGroup{},
+		DataSize: int(contentLength), 
 	}
 
 	return d
 }
 
-func doPrintDLProgress(fs []*FileXtd, n *int64, wg *sync.WaitGroup) {
+func doPrintDLProgress(fs FileIOs, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for _, v := range fs {
-		<-v.WriteSIG
+
+	for _, f := range fs {
+		<-f.WriteSIG
 	}
 
-	for getTotalWriter(fs) > 0 {
-		for _, v := range fs {
-			fmt.Println(getFileSize(v), "/", *n)
+	for fs.getTotalWriter() > 0 {
+		for _, f := range fs {
+			fmt.Println(f.getSize(), "/", (f.bOffE - f.bOffS) )
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -100,26 +110,6 @@ func getRawURL(a []string) string {
 	return a[len(a)-1]
 }
 
-func buildBytePartition(byteCount int, parts int) []string {
-
-	s := make([]string, parts)
-
-	// +1 because zero is included
-	partSize := (byteCount + 1) / parts
-	for i, j := 0, 0; i < parts; i, j = i+1, j+partSize {
-
-		lowerbound := j
-		upperbound := lowerbound + partSize - 1
-		if i == parts {
-			upperbound = byteCount
-		}
-
-		s[i] = fmt.Sprintf("%v-%v", lowerbound, upperbound)
-
-	}
-	return s
-
-}
 
 func doAddSuffix(s string, index int) string {
 	return fmt.Sprintf("%v_%v", s, index)
