@@ -13,10 +13,10 @@ import (
 
 type Download struct {
 	*Netconn
-	Files FileIOs
-	IOch  chan io.ReadCloser
-	URI   string
-	WG    *sync.WaitGroup
+	Files    FileIOs
+	IOch     chan io.ReadCloser
+	URI      string
+	WG       *sync.WaitGroup
 	DataSize int
 }
 
@@ -35,21 +35,19 @@ func (d *Download) Start() {
 	FileNumParts := len(d.Files)
 
 	d.Files.setByteOffsetRange(d.DataSize)
-	
-	for v := range FileNumParts {
-		
 
-		byteRange := fmt.Sprintf("bytes=%d-%d", d.Files[v].bOffS, d.Files[v].bOffE)
+	for i := range FileNumParts {
+
+		byteRange := fmt.Sprintf("bytes=%d-%d", d.Files[i].bOffS, d.Files[i].bOffE)
 
 		d.Request.Header.Set("Range", byteRange)
 
 		d.WG.Add(2)
 		go doConn(d.Netconn, d.IOch, d.WG)
-		go doWriteFile(d.Files[v], d.IOch, d.WG)
+		go doWriteFile(d.Files[i], d.IOch, d.WG)
 
 	}
 
-	
 	d.WG.Add(1)
 	go doPrintDLProgress(d.Files, d.WG)
 
@@ -67,7 +65,7 @@ func buildDownload(fnp int, uri string) *Download {
 	nc := buildNetconn(ct, req)
 
 	headers, contentLength := nc.getRespHeaders()
-	
+
 	fileName := buildFileName(uri, &headers)
 
 	var files FileIOs = make([]*FileIO, fnp)
@@ -78,12 +76,12 @@ func buildDownload(fnp int, uri string) *Download {
 	}
 
 	d := &Download{
-		Netconn: nc,
-		Files:   files,
-		IOch:    ch,
-		URI:     uri,
-		WG:      &sync.WaitGroup{},
-		DataSize: int(contentLength), 
+		Netconn:  nc,
+		Files:    files,
+		IOch:     ch,
+		URI:      uri,
+		WG:       &sync.WaitGroup{},
+		DataSize: int(contentLength),
 	}
 
 	return d
@@ -92,14 +90,13 @@ func buildDownload(fnp int, uri string) *Download {
 func doPrintDLProgress(fs FileIOs, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-
 	for _, f := range fs {
 		<-f.WriteSIG
 	}
 
 	for fs.getTotalWriter() > 0 {
 		for _, f := range fs {
-			fmt.Println(f.getSize(), "/", (f.bOffE - f.bOffS) )
+			fmt.Println(f.getSize(), "/", (f.bOffE - f.bOffS))
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -109,7 +106,6 @@ func doPrintDLProgress(fs FileIOs, wg *sync.WaitGroup) {
 func getRawURL(a []string) string {
 	return a[len(a)-1]
 }
-
 
 func doAddSuffix(s string, index int) string {
 	return fmt.Sprintf("%v_%v", s, index)

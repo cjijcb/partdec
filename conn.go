@@ -1,10 +1,10 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"sync"
-	"errors"
 )
 
 type Netconn struct {
@@ -45,7 +45,7 @@ func doConn(nc *Netconn, chR chan io.ReadCloser, wg *sync.WaitGroup) {
 	resp, err := nc.Client.Do(nc.Request)
 	doHandle(err)
 
-	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299)  {
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
 		doHandle(errors.New(resp.Status))
 	}
 

@@ -13,15 +13,14 @@ import (
 type byteOffsetStart = int
 type byteOffsetEnd = int
 
-
 type FileIOs []*FileIO
 
 type FileIO struct {
 	*os.File
 	ActiveWriter *int
 	WriteSIG     chan struct{}
-	bOffS	byteOffsetStart
-	bOffE	byteOffsetEnd
+	bOffS        byteOffsetStart
+	bOffE        byteOffsetEnd
 }
 
 func buildFileName(rawURL string, hdr *http.Header) string {
@@ -82,25 +81,24 @@ func (fs FileIOs) getTotalWriter() int {
 	return totalWriter
 }
 
-
 func (fs FileIOs) setByteOffsetRange(byteCount int) {
 
 	parts := len(fs)
 
-    // +1 because zero is included
-    partSize := (byteCount + 1) / parts
-    for i, j := 0, 0; i < parts; i, j = i+1, j+partSize {
+	// +1 because zero is included
+	partSize := (byteCount + 1) / parts
+	for i, j := 0, 0; i < parts; i, j = i+1, j+partSize {
 
-        lowerbound := j
-        upperbound := lowerbound + partSize - 1
-        if i == parts {
-            upperbound = byteCount
-        }
-		
+		lowerbound := j
+		upperbound := lowerbound + partSize - 1
+		if i == parts {
+			upperbound = byteCount
+		}
+
 		fs[i].bOffS = lowerbound
 
 		fs[i].bOffE = upperbound
 
-    }
+	}
 
 }
