@@ -14,9 +14,9 @@ type byteOffsetStart = int
 type byteOffsetEnd = int
 
 
-type FileIOs []*FileXtd
+type FileIOs []*FileIO
 
-type FileXtd struct {
+type FileIO struct {
 	*os.File
 	ActiveWriter *int
 	WriteSIG     chan struct{}
@@ -40,13 +40,13 @@ func buildFileName(rawURL string, hdr *http.Header) string {
 
 }
 
-func buildFile(name string) *FileXtd {
+func buildFile(name string) *FileIO {
 
 	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 
 	doHandle(err)
 
-	file := &FileXtd{
+	file := &FileIO{
 		File:         f,
 		ActiveWriter: new(int),
 		WriteSIG:     make(chan struct{}),
@@ -55,7 +55,7 @@ func buildFile(name string) *FileXtd {
 	return file
 }
 
-func doWriteFile(f *FileXtd, chR chan io.ReadCloser, wg *sync.WaitGroup) {
+func doWriteFile(f *FileIO, chR chan io.ReadCloser, wg *sync.WaitGroup) {
 	defer wg.Done()
 	f.addWriter(1)
 	f.WriteSIG <- struct{}{}
@@ -64,11 +64,11 @@ func doWriteFile(f *FileXtd, chR chan io.ReadCloser, wg *sync.WaitGroup) {
 	//f.Sync()
 }
 
-func (f *FileXtd) addWriter(n int) {
+func (f *FileIO) addWriter(n int) {
 	*f.ActiveWriter += n
 }
 
-func (f *FileXtd) getSize() int64 {
+func (f *FileIO) getSize() int64 {
 	fi, err := f.Stat()
 	doHandle(err)
 	return fi.Size()
