@@ -70,7 +70,7 @@ func buildDownload(fnp int, uri string) *Download {
 	
 	fileName := buildFileName(uri, &headers)
 
-	var files FileIOs = make([]*FileXtd, fnp)
+	var files FileIOs = make([]*FileIO, fnp)
 
 	for i := range files {
 		fileNameWithSuffix := doAddSuffix(fileName, i)
