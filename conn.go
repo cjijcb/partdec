@@ -7,13 +7,13 @@ import (
 	"sync"
 )
 
-type Netconn struct {
+type NetConn struct {
 	Client  *http.Client
 	Request *http.Request
 }
 
-func buildNetconn(ct *http.Client, req *http.Request) *Netconn {
-	nc := &Netconn{
+func buildNetConn(ct *http.Client, req *http.Request) *NetConn {
+	nc := &NetConn{
 		Client:  ct,
 		Request: req,
 	}
@@ -24,9 +24,9 @@ func buildNetconn(ct *http.Client, req *http.Request) *Netconn {
 func buildReq(method string, rawURL string) *http.Request {
 	req, err := http.NewRequest(method, rawURL, nil)
 	doHandle(err)
-	req.Proto = "http/2.0"
-	req.ProtoMajor = 2
-	req.ProtoMinor = 0
+	req.Proto = "http/1.1"
+	req.ProtoMajor = 1
+	req.ProtoMinor = 1
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", "fssn/1.0.0")
 	return req
@@ -40,22 +40,27 @@ func buildClient() *http.Client {
 	return ct
 }
 
-func doConn(nc *Netconn, chR chan io.ReadCloser, wg *sync.WaitGroup) {
+func Fetch(nc *NetConn, w *io.PipeWriter, wg *sync.WaitGroup) {
 	defer wg.Done()
+
 	resp, err := nc.Client.Do(nc.Request)
 	doHandle(err)
+	defer resp.Body.Close()
 
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
 		doHandle(errors.New(resp.Status))
 	}
-
-	//defer resp.Body.Close()
-	chR <- resp.Body
+	io.Copy(w, resp.Body)
+	w.Close()
 }
 
-func (nc *Netconn) getRespHeaders() (http.Header, int64) {
-	newReq := *nc.Request
-	newReq.Method = http.MethodHead
-	resp, _ := nc.Client.Do(&newReq)
+func GetHeaders(rawURL string) (http.Header, int64) {
+	ct := &http.Client{}
+	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
+	doHandle(err)
+
+	req.Header.Set("User-Agent", "fssn/1.0.0")
+	resp, err := ct.Do(req)
+	doHandle(err)
 	return resp.Header, resp.ContentLength
 }

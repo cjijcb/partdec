@@ -54,13 +54,14 @@ func buildFile(name string) *FileIO {
 	return file
 }
 
-func doWriteFile(f *FileIO, chR chan io.ReadCloser, wg *sync.WaitGroup) {
+func WriteToFile(f *FileIO, r *io.PipeReader, wg *sync.WaitGroup) {
 	defer wg.Done()
 	f.addWriter(1)
 	f.WriteSIG <- struct{}{}
-	io.Copy(f, <-chR)
+	//io.Copy(f, r)
+	f.ReadFrom(r)
 	f.addWriter(-1)
-	//f.Sync()
+	f.Sync()
 }
 
 func (f *FileIO) addWriter(n int) {
@@ -81,24 +82,24 @@ func (fs FileIOs) getTotalWriter() int {
 	return totalWriter
 }
 
-func (fs FileIOs) setByteOffsetRange(byteCount int) {
+func (fs FileIOs) setByteRange(byteCount int) {
 
-	parts := len(fs)
+	partCount := len(fs)
+	partSize := byteCount / partCount
+	var lowerLimit, upperLimit int
 
-	// +1 because zero is included
-	partSize := (byteCount + 1) / parts
-	for i, j := 0, 0; i < parts; i, j = i+1, j+partSize {
+	for i, ii := 0, 0; i < partCount; i, ii = i+1, ii+partSize {
 
-		lowerbound := j
-		upperbound := lowerbound + partSize - 1
-		if i == parts {
-			upperbound = byteCount
+		if i+1 == partCount {
+			lowerLimit = ii
+			upperLimit = byteCount - 1
+		} else {
+			lowerLimit = ii
+			upperLimit = (lowerLimit - 1) + partSize
 		}
 
-		fs[i].bOffS = lowerbound
-
-		fs[i].bOffE = upperbound
+		fs[i].bOffS = lowerLimit
+		fs[i].bOffE = upperLimit
 
 	}
-
 }
