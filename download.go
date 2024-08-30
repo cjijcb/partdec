@@ -1,77 +1,92 @@
 package main
 
-
 import (
-    "fmt"
-    "io"
-    "net/http"
-    "sync"
+	"fmt"
+	"io"
+	"net/http"
+	"sync"
 )
 
 type Download struct {
-    *Netconn
-    Files    FileIOs
-    IOch     chan io.ReadCloser
-    URI      string
-    WG       *sync.WaitGroup
-    DataSize int
+	Files    FileIOs
+	NetConns []*NetConn
+	Readers  []*io.PipeReader
+	Writers  []*io.PipeWriter
+	URI      string
+	WG       *sync.WaitGroup
+	DataSize int
 }
-
 
 func (d *Download) Start() {
 
-    FileNumParts := len(d.Files)
+	filePartCount := len(d.Files)
 
-    d.Files.setByteOffsetRange(d.DataSize)
+	d.Files.setByteRange(d.DataSize)
 
-    for i := range FileNumParts {
+	//d.Files[0].bOffS = 0
+	//d.Files[0].bOffE = 2621439
+	////
+	//d.Files[1].bOffS = 2621440
+	//d.Files[1].bOffE = 5242879
 
-        byteRange := fmt.Sprintf("bytes=%d-%d", d.Files[i].bOffS, d.Files[i].bOffE)
+	for i := range filePartCount {
 
-        d.Request.Header.Set("Range", byteRange)
+		byteRange := fmt.Sprintf("bytes=%d-%d", d.Files[i].bOffS, d.Files[i].bOffE)
 
-        d.WG.Add(2)
-        go doConn(d.Netconn, d.IOch, d.WG)
-        go doWriteFile(d.Files[i], d.IOch, d.WG)
+		d.NetConns[i].Request.Header.Set("Range", byteRange)
 
-    }
+		d.WG.Add(2)
+		go Fetch(d.NetConns[i], d.Writers[i], d.WG)
+		go WriteToFile(d.Files[i], d.Readers[i], d.WG)
 
-    d.WG.Add(1)
-    go doPrintDLProgress(d.Files, d.WG)
+	}
 
-    d.WG.Wait()
-    close(d.IOch)
+	d.WG.Add(1)
+	go doPrintDLProgress(d.Files, d.WG)
+
+	d.WG.Wait()
+
 }
 
+func buildDownload(filePartCount int, uri string) *Download {
 
+	headers, contentLength := GetHeaders(uri)
 
-func buildDownload(fnp int, uri string) *Download {
+	fmt.Println(headers)
 
-    ch := make(chan io.ReadCloser)
+	fileName := buildFileName(uri, &headers)
 
-    ct := buildClient()
-    req := buildReq(http.MethodGet, uri)
-    nc := buildNetconn(ct, req)
+	var files FileIOs = make([]*FileIO, filePartCount)
 
-    headers, contentLength := nc.getRespHeaders()
+	rs := make([]*io.PipeReader, filePartCount)
+	ws := make([]*io.PipeWriter, filePartCount)
+	ncs := make([]*NetConn, filePartCount)
 
-    fileName := buildFileName(uri, &headers)
+	for i := range filePartCount {
 
-    var files FileIOs = make([]*FileIO, fnp)
+		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
+		files[i] = buildFile(fileNameWithSuffix)
+		r, w := io.Pipe()
+		rs[i] = r
+		ws[i] = w
 
-    for i := range files {
-        fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
-        files[i] = buildFile(fileNameWithSuffix)
-    }
+		ct := buildClient()
+		req := buildReq(http.MethodGet, uri)
+		nc := buildNetConn(ct, req)
 
-    d := &Download{
-        Netconn:  nc,
-        Files:    files,
-        IOch:     ch,
-        URI:      uri,
-        WG:       &sync.WaitGroup{},
-        DataSize: int(contentLength),
-    }
+		ncs[i] = nc
 
-    return d
+	}
+
+	d := &Download{
+		Files:    files,
+		NetConns: ncs,
+		Readers:  rs,
+		Writers:  ws,
+		URI:      uri,
+		WG:       &sync.WaitGroup{},
+		DataSize: int(contentLength),
+	}
+
+	return d
 }
