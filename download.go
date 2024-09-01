@@ -23,12 +23,6 @@ func (d *Download) Start() {
 
 	d.Files.setByteRange(d.DataSize)
 
-	//d.Files[0].bOffS = 0
-	//d.Files[0].bOffE = 2621439
-	////
-	//d.Files[1].bOffS = 2621440
-	//d.Files[1].bOffE = 5242879
-
 	for i := range filePartCount {
 
 		byteRange := fmt.Sprintf("bytes=%d-%d", d.Files[i].bOffS, d.Files[i].bOffE)

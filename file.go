@@ -41,7 +41,7 @@ func buildFileName(rawURL string, hdr *http.Header) string {
 
 func buildFile(name string) *FileIO {
 
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, 0666)
 
 	doHandle(err)
 
@@ -59,6 +59,7 @@ func WriteToFile(f *FileIO, r *io.PipeReader, wg *sync.WaitGroup) {
 	f.addWriter(1)
 	f.WriteSIG <- struct{}{}
 	//io.Copy(f, r)
+	f.Seek(f.getSize(), io.SeekStart)
 	f.ReadFrom(r)
 	f.addWriter(-1)
 	f.Sync()
@@ -98,7 +99,7 @@ func (fs FileIOs) setByteRange(byteCount int) {
 			upperLimit = (lowerLimit - 1) + partSize
 		}
 
-		fs[i].bOffS = lowerLimit
+		fs[i].bOffS = lowerLimit + int(fs[i].getSize())
 		fs[i].bOffE = upperLimit
 
 	}
