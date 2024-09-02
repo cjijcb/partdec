@@ -40,7 +40,7 @@ func buildClient() *http.Client {
 	return ct
 }
 
-func Fetch(nc *NetConn, w *DataStreamline, wg *sync.WaitGroup) {
+func Fetch(nc *NetConn, w *DataStream, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	resp, err := nc.Client.Do(nc.Request)

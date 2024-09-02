@@ -54,14 +54,15 @@ func buildFile(name string) *FileIO {
 	return file
 }
 
-func WriteToFile(f *FileIO, r *DataStreamline, wg *sync.WaitGroup) {
+
+
+func WriteToFile(f *FileIO, r *DataStream, wg *sync.WaitGroup) {
 	defer wg.Done()
 	f.addWriter(1)
 	f.WriteSIG <- struct{}{}
 	f.Seek(f.getSize(), io.SeekStart)
 	f.ReadFrom(r.PipeReader)
 	f.addWriter(-1)
-	f.Sync()
 }
 
 func (f *FileIO) addWriter(n int) {
