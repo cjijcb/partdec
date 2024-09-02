@@ -97,7 +97,7 @@ func (fs FileIOs) setByteRange(byteCount int) {
 			upperLimit = (lowerLimit - 1) + partSize
 		}
 
-		fs[i].bOffS = lowerLimit + int(fs[i].getSize())
+		fs[i].bOffS = lowerLimit
 		fs[i].bOffE = upperLimit
 
 	}
