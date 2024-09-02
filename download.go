@@ -7,14 +7,18 @@ import (
 	"sync"
 )
 
+type DataStreamline struct {
+	*io.PipeReader
+	*io.PipeWriter
+}
+
 type Download struct {
-	Files    FileIOs
-	NetConns []*NetConn
-	Readers  []*io.PipeReader
-	Writers  []*io.PipeWriter
-	URI      string
-	WG       *sync.WaitGroup
-	DataSize int
+	Files       FileIOs
+	NetConns    []*NetConn
+	DataStreams []*DataStreamline
+	URI         string
+	WG          *sync.WaitGroup
+	DataSize    int
 }
 
 func (d *Download) Start() {
@@ -30,8 +34,8 @@ func (d *Download) Start() {
 		d.NetConns[i].Request.Header.Set("Range", byteRange)
 
 		d.WG.Add(2)
-		go Fetch(d.NetConns[i], d.Writers[i], d.WG)
-		go WriteToFile(d.Files[i], d.Readers[i], d.WG)
+		go Fetch(d.NetConns[i], d.DataStreams[i], d.WG)
+		go WriteToFile(d.Files[i], d.DataStreams[i], d.WG)
 
 	}
 
@@ -44,42 +48,37 @@ func (d *Download) Start() {
 
 func buildDownload(filePartCount int, uri string) *Download {
 
-	headers, contentLength := GetHeaders(uri)
-
-	fmt.Println(headers)
-
-	fileName := buildFileName(uri, &headers)
-
-	var files FileIOs = make([]*FileIO, filePartCount)
-
-	rs := make([]*io.PipeReader, filePartCount)
-	ws := make([]*io.PipeWriter, filePartCount)
+	files := make([]*FileIO, filePartCount)
+	ds := make([]*DataStreamline, filePartCount)
 	ncs := make([]*NetConn, filePartCount)
+
+	headers, contentLength := GetHeaders(uri)
+	fileName := buildFileName(uri, &headers)
 
 	for i := range filePartCount {
 
 		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
 		files[i] = buildFile(fileNameWithSuffix)
+
 		r, w := io.Pipe()
-		rs[i] = r
-		ws[i] = w
+		ds[i] = &DataStreamline{
+			PipeReader: r,
+			PipeWriter: w,
+		}
 
 		ct := buildClient()
 		req := buildReq(http.MethodGet, uri)
-		nc := buildNetConn(ct, req)
-
-		ncs[i] = nc
+		ncs[i] = buildNetConn(ct, req)
 
 	}
 
 	d := &Download{
-		Files:    files,
-		NetConns: ncs,
-		Readers:  rs,
-		Writers:  ws,
-		URI:      uri,
-		WG:       &sync.WaitGroup{},
-		DataSize: int(contentLength),
+		Files:       files,
+		NetConns:    ncs,
+		DataStreams: ds,
+		URI:         uri,
+		WG:          &sync.WaitGroup{},
+		DataSize:    int(contentLength),
 	}
 
 	return d
