@@ -43,13 +43,12 @@ func (d *Download) Start() {
 	go doPrintDLProgress(d.Files, d.WG)
 
 	d.WG.Wait()
-
 }
 
 func buildDownload(filePartCount int, uri string) *Download {
 
 	files := make([]*FileIO, filePartCount)
-	ds := make([]*DataStream, filePartCount)
+	dss := make([]*DataStream, filePartCount)
 	ncs := make([]*NetConn, filePartCount)
 
 	headers, contentLength := GetHeaders(uri)
@@ -60,11 +59,7 @@ func buildDownload(filePartCount int, uri string) *Download {
 		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
 		files[i] = buildFile(fileNameWithSuffix)
 
-		r, w := io.Pipe()
-		ds[i] = &DataStream{
-			PipeReader: r,
-			PipeWriter: w,
-		}
+		dss[i] = buildDataStream()
 
 		ct := buildClient()
 		req := buildReq(http.MethodGet, uri)
@@ -75,11 +70,22 @@ func buildDownload(filePartCount int, uri string) *Download {
 	d := &Download{
 		Files:       files,
 		NetConns:    ncs,
-		DataStreams: ds,
+		DataStreams: dss,
 		URI:         uri,
 		WG:          &sync.WaitGroup{},
 		DataSize:    int(contentLength),
 	}
 
 	return d
+}
+
+func buildDataStream() *DataStream {
+
+	r, w := io.Pipe()
+	ds := &DataStream{
+		PipeReader: r,
+		PipeWriter: w,
+	}
+
+	return ds
 }

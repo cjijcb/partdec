@@ -54,8 +54,6 @@ func buildFile(name string) *FileIO {
 	return file
 }
 
-
-
 func WriteToFile(f *FileIO, r *DataStream, wg *sync.WaitGroup) {
 	defer wg.Done()
 	f.addWriter(1)
