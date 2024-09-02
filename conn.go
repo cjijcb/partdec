@@ -40,7 +40,7 @@ func buildClient() *http.Client {
 	return ct
 }
 
-func Fetch(nc *NetConn, w *io.PipeWriter, wg *sync.WaitGroup) {
+func Fetch(nc *NetConn, w *DataStreamline, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	resp, err := nc.Client.Do(nc.Request)
@@ -50,8 +50,8 @@ func Fetch(nc *NetConn, w *io.PipeWriter, wg *sync.WaitGroup) {
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
 		doHandle(errors.New(resp.Status))
 	}
-	io.Copy(w, resp.Body)
-	w.Close()
+	io.Copy(w.PipeWriter, resp.Body)
+	w.PipeWriter.Close()
 }
 
 func GetHeaders(rawURL string) (http.Header, int64) {
