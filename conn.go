@@ -50,6 +50,7 @@ func Fetch(nc *NetConn, w *DataStream, wg *sync.WaitGroup) {
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
 		doHandle(errors.New(resp.Status))
 	}
+
 	io.Copy(w.PipeWriter, resp.Body)
 	w.PipeWriter.Close()
 }
@@ -58,7 +59,6 @@ func GetHeaders(rawURL string) (http.Header, int64) {
 	ct := &http.Client{}
 	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
 	doHandle(err)
-
 	req.Header.Set("User-Agent", "fssn/1.0.0")
 	resp, err := ct.Do(req)
 	doHandle(err)
