@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-type DataStreamline struct {
+type DataStream struct {
 	*io.PipeReader
 	*io.PipeWriter
 }
@@ -15,7 +15,7 @@ type DataStreamline struct {
 type Download struct {
 	Files       FileIOs
 	NetConns    []*NetConn
-	DataStreams []*DataStreamline
+	DataStreams []*DataStream
 	URI         string
 	WG          *sync.WaitGroup
 	DataSize    int
@@ -49,7 +49,7 @@ func (d *Download) Start() {
 func buildDownload(filePartCount int, uri string) *Download {
 
 	files := make([]*FileIO, filePartCount)
-	ds := make([]*DataStreamline, filePartCount)
+	ds := make([]*DataStream, filePartCount)
 	ncs := make([]*NetConn, filePartCount)
 
 	headers, contentLength := GetHeaders(uri)
@@ -61,7 +61,7 @@ func buildDownload(filePartCount int, uri string) *Download {
 		files[i] = buildFile(fileNameWithSuffix)
 
 		r, w := io.Pipe()
-		ds[i] = &DataStreamline{
+		ds[i] = &DataStream{
 			PipeReader: r,
 			PipeWriter: w,
 		}
