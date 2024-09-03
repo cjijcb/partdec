@@ -21,7 +21,9 @@ func doPrintDLProgress(fs FileIOs, wg *sync.WaitGroup) {
 	for fs.getTotalWriter() > 0 {
 		fmt.Println("writer:", fs.getTotalWriter())
 		for _, f := range fs {
-			fmt.Printf("%d / %d\n", f.getSize(), (f.bOffE - f.bOffS + 1))
+			sb := f.StartByte
+			eb := f.EndByte
+			fmt.Printf("state: %d | %d / %d\n", f.State, f.getSize(), (eb - sb + 1))
 		}
 		time.Sleep(50 * time.Millisecond)
 		//fmt.Printf(strings.Repeat(clearLine, lineCount))

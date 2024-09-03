@@ -26,6 +26,7 @@ func (d *Download) Start() {
 	filePartCount := len(d.Files)
 
 	d.Files.setByteRange(d.DataSize)
+	d.Files.setInitState()
 
 	for i := range filePartCount {
 
@@ -33,7 +34,7 @@ func (d *Download) Start() {
 		nc := d.NetConns[i]
 		ds := d.DataStreams[i]
 
-		nc.Request.Header.Set("Range", buildByteRange(f))
+		nc.Request.Header.Set("Range", buildRangeHeader(f))
 
 		d.WG.Add(2)
 		go Fetch(nc, ds, d.WG)
@@ -81,15 +82,15 @@ func buildDownload(filePartCount int, uri string) *Download {
 	return d
 }
 
-func buildByteRange(f *FileIO) string {
-	rangeStart := f.bOffS + int(f.getSize())
-	rangeEnd := f.bOffE
+func buildRangeHeader(f *FileIO) string {
+	rangeStart := f.StartByte + f.getSize()
+	rangeEnd := f.EndByte
 	if rangeStart > rangeEnd {
 		rangeStart = rangeEnd
 	}
-	byteRange := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)
-	fmt.Println(byteRange)
-	return byteRange
+	rh := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)
+	fmt.Println(rh)
+	return rh
 }
 
 func buildDataStream() *DataStream {
