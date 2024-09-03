@@ -58,7 +58,7 @@ func WriteToFile(f *FileIO, r *DataStream, wg *sync.WaitGroup) {
 	defer wg.Done()
 	f.addWriter(1)
 	f.WriteSIG <- struct{}{}
-	f.Seek(f.getSize(), io.SeekStart)
+	f.Seek(-1, io.SeekEnd)
 	f.ReadFrom(r.PipeReader)
 	f.addWriter(-1)
 }
