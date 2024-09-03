@@ -7,8 +7,6 @@ import (
 	"sync"
 )
 
-
-
 type DataStream struct {
 	*io.PipeReader
 	*io.PipeWriter
@@ -35,12 +33,7 @@ func (d *Download) Start() {
 		nc := d.NetConns[i]
 		ds := d.DataStreams[i]
 
-		rangeStart := f.bOffS + int(f.getSize())
-		rangeEnd := f.bOffE 
-
-		byteRange := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd) 	
-
-		nc.Request.Header.Set("Range", byteRange)
+		nc.Request.Header.Set("Range", buildByteRange(f))
 
 		d.WG.Add(2)
 		go Fetch(nc, ds, d.WG)
@@ -88,6 +81,17 @@ func buildDownload(filePartCount int, uri string) *Download {
 	return d
 }
 
+func buildByteRange(f *FileIO) string {
+	rangeStart := f.bOffS + int(f.getSize())
+	rangeEnd := f.bOffE
+	if rangeStart > rangeEnd {
+		rangeStart = rangeEnd
+	}
+	byteRange := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)
+	fmt.Println(byteRange)
+	return byteRange
+}
+
 func buildDataStream() *DataStream {
 
 	r, w := io.Pipe()
@@ -98,5 +102,3 @@ func buildDataStream() *DataStream {
 
 	return ds
 }
-
-
