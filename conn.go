@@ -7,10 +7,12 @@ import (
 	"sync"
 )
 
-type NetConn struct {
-	Client  *http.Client
-	Request *http.Request
-}
+type (
+	NetConn struct {
+		Client  *http.Client
+		Request *http.Request
+	}
+)
 
 func buildNetConn(ct *http.Client, req *http.Request) *NetConn {
 	nc := &NetConn{

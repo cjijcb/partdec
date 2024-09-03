@@ -10,24 +10,26 @@ import (
 	"sync"
 )
 
+type (
+	FileState uint8
+
+	FileIOs []*FileIO
+
+	FileIO struct {
+		*os.File
+		ActiveWriter       *int
+		WriteSIG           chan struct{}
+		StartByte, EndByte int
+		State              FileState
+	}
+)
+
 const (
 	New       FileState = 0
 	Resume    FileState = 1
-	Completed FileState = 3
-	Corrupted FileState = 4
+	Completed FileState = 2
+	Corrupted FileState = 3
 )
-
-type FileState uint8
-
-type FileIOs []*FileIO
-
-type FileIO struct {
-	*os.File
-	ActiveWriter       *int
-	WriteSIG           chan struct{}
-	StartByte, EndByte int
-	State              FileState
-}
 
 func buildFileName(rawURL string, hdr *http.Header) string {
 	_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
