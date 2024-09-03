@@ -7,19 +7,21 @@ import (
 	"sync"
 )
 
-type DataStream struct {
-	*io.PipeReader
-	*io.PipeWriter
-}
+type (
+	DataStream struct {
+		*io.PipeReader
+		*io.PipeWriter
+	}
 
-type Download struct {
-	Files       FileIOs
-	NetConns    []*NetConn
-	DataStreams []*DataStream
-	URI         string
-	WG          *sync.WaitGroup
-	DataSize    int
-}
+	Download struct {
+		Files       FileIOs
+		NetConns    []*NetConn
+		DataStreams []*DataStream
+		URI         string
+		WG          *sync.WaitGroup
+		DataSize    int
+	}
+)
 
 func (d *Download) Start() {
 
