@@ -58,14 +58,13 @@ func buildFile(name string) *FileIO {
 	return file
 }
 
-func WriteToFile(f *FileIO, ds *DataStream, fwc *FileWriterCount, wg *sync.WaitGroup) {
+func WriteToFile(f *FileIO, ds *DataStream, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	*fwc += 1
 	f.Seek(0, io.SeekEnd)
 	f.ReadFrom(ds.R)
 	ds.R.Close()
-	*fwc -= 1
+	close(ds.RWDone)
 }
 
 func (f *FileIO) getSize() int {
