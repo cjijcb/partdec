@@ -8,12 +8,12 @@ import (
 )
 
 type (
-	FileWriterCount uint32
-	DLStatus        uint8
+	DLStatus uint8
 
 	DataStream struct {
-		R       *io.PipeReader
-		W       *io.PipeWriter
+		R      *io.PipeReader
+		W      *io.PipeWriter
+		RWDone chan bool
 	}
 
 	Download struct {
@@ -24,7 +24,6 @@ type (
 		WG          *sync.WaitGroup
 		Status      DLStatus
 		DataSize    int
-		FWC         FileWriterCount
 	}
 )
 
@@ -33,6 +32,7 @@ const (
 	Running
 	Stopping
 	Stopped
+	SIG = true
 )
 
 func (d *Download) Start() {
@@ -52,6 +52,7 @@ func (d *Download) Start() {
 		ds := d.DataStreams[i]
 
 		if f.State == Completed || f.State == Corrupted {
+			close(ds.RWDone)
 			continue
 		}
 
@@ -59,13 +60,20 @@ func (d *Download) Start() {
 
 		d.WG.Add(2)
 		go Fetch(nc, ds, d.WG)
-		go WriteToFile(f, ds, &d.FWC, d.WG)
+		go WriteToFile(f, ds, d.WG)
 
 	}
 
-	d.WG.Wait()
-	d.Status = Stopping
+	d.WG.Add(1)
+	go func() {
+		defer d.WG.Done()
+		for _, ds := range d.DataStreams {
+			<-ds.RWDone
+		}
+		d.Status = Stopping
+	}()
 
+	d.WG.Wait()
 	d.Files.Close()
 	d.Status = Stopped
 }
@@ -118,10 +126,13 @@ func buildRangeHeader(f *FileIO) string {
 
 func buildDataStream() *DataStream {
 
+	rwc := make(chan bool)
+
 	r, w := io.Pipe()
 	ds := &DataStream{
-		R: r,
-		W: w,
+		R:      r,
+		W:      w,
+		RWDone: rwc,
 	}
 
 	return ds

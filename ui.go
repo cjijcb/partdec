@@ -24,9 +24,9 @@ func ShowProgress(d *Download) {
 		time.Sleep(50 * time.Millisecond)
 		//fmt.Printf(strings.Repeat(clearLine, lineCount))
 
-		if d.FWC < 1 {
-			break
-		}
+		//if d.FWC < 1 {
+		//	break
+		//}
 
 	}
 
