@@ -9,11 +9,11 @@ import (
 
 type (
 	FileWriterCount uint32
-	DLStatus uint8
+	DLStatus        uint8
 
 	DataStream struct {
-		R	 *io.PipeReader
-		W	*io.PipeWriter
+		R       *io.PipeReader
+		W       *io.PipeWriter
 	}
 
 	Download struct {
@@ -22,14 +22,14 @@ type (
 		DataStreams []*DataStream
 		URI         string
 		WG          *sync.WaitGroup
-		Status		DLStatus
+		Status      DLStatus
 		DataSize    int
-		FWC			FileWriterCount
+		FWC         FileWriterCount
 	}
 )
 
 const (
-	Sarting	DLStatus = iota
+	Starting DLStatus = iota
 	Running
 	Stopping
 	Stopped
@@ -50,20 +50,23 @@ func (d *Download) Start() {
 		f := d.Files[i]
 		nc := d.NetConns[i]
 		ds := d.DataStreams[i]
-	
+
 		if f.State == Completed || f.State == Corrupted {
 			continue
 		}
 
 		nc.Request.Header.Set("Range", buildRangeHeader(f))
-		
+
 		d.WG.Add(2)
 		go Fetch(nc, ds, d.WG)
 		go WriteToFile(f, ds, &d.FWC, d.WG)
 
 	}
-	
+
 	d.WG.Wait()
+	d.Status = Stopping
+
+	d.Files.Close()
 	d.Status = Stopped
 }
 
@@ -96,6 +99,7 @@ func buildDownload(filePartCount int, uri string) *Download {
 		URI:         uri,
 		WG:          &sync.WaitGroup{},
 		DataSize:    int(contentLength),
+		Status:      Starting,
 	}
 
 	return d

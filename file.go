@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	//"sync/atomic"
 )
 
 type (
@@ -17,8 +18,6 @@ type (
 
 	FileIO struct {
 		*os.File
-		ActiveWriter       *int
-		WriteSIG           chan struct{}
 		StartByte, EndByte int
 		State              FileState
 	}
@@ -54,23 +53,20 @@ func buildFile(name string) *FileIO {
 	doHandle(err)
 
 	file := &FileIO{
-		File:         f,
-		ActiveWriter: new(int),
-		WriteSIG:     make(chan struct{}),
+		File: f,
 	}
-	//defer file.Close()
 	return file
 }
 
 func WriteToFile(f *FileIO, ds *DataStream, fwc *FileWriterCount, wg *sync.WaitGroup) {
 	defer wg.Done()
-	
+
 	*fwc += 1
 	f.Seek(0, io.SeekEnd)
 	f.ReadFrom(ds.R)
+	ds.R.Close()
 	*fwc -= 1
 }
-
 
 func (f *FileIO) getSize() int {
 	fi, err := f.Stat()
@@ -78,6 +74,11 @@ func (f *FileIO) getSize() int {
 	return int(fi.Size())
 }
 
+func (fs FileIOs) Close() {
+	for _, f := range fs {
+		f.Close()
+	}
+}
 
 func (fs FileIOs) setInitState() {
 
