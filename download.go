@@ -52,7 +52,7 @@ func (d *Download) Start() {
 		ds := d.DataStreams[i]
 
 		if f.State == Completed || f.State == Corrupted {
-			close(ds.RWDone)
+			ds.Close()
 			continue
 		}
 
@@ -74,6 +74,7 @@ func (d *Download) Start() {
 	}()
 
 	d.WG.Wait()
+	fmt.Println("stopping")
 	d.Files.Close()
 	d.Status = Stopped
 }
@@ -136,4 +137,9 @@ func buildDataStream() *DataStream {
 	}
 
 	return ds
+}
+
+func (ds *DataStream) Close() {
+	ds.W.Close()
+	close(ds.RWDone)
 }

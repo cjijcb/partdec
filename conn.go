@@ -55,7 +55,7 @@ func Fetch(nc *NetConn, ds *DataStream, wg *sync.WaitGroup) {
 	}
 
 	io.Copy(ds.W, resp.Body)
-	ds.W.Close()
+	ds.Close()
 }
 
 func GetHeaders(rawURL string) (http.Header, int64) {
