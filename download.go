@@ -8,9 +8,12 @@ import (
 )
 
 type (
+	FileWriterCount uint32
+	DLStatus uint8
+
 	DataStream struct {
-		*io.PipeReader
-		*io.PipeWriter
+		R	 *io.PipeReader
+		W	*io.PipeWriter
 	}
 
 	Download struct {
@@ -19,8 +22,17 @@ type (
 		DataStreams []*DataStream
 		URI         string
 		WG          *sync.WaitGroup
+		Status		DLStatus
 		DataSize    int
+		FWC			FileWriterCount
 	}
+)
+
+const (
+	Sarting	DLStatus = iota
+	Running
+	Stopping
+	Stopped
 )
 
 func (d *Download) Start() {
@@ -29,25 +41,30 @@ func (d *Download) Start() {
 
 	d.Files.setByteRange(d.DataSize)
 	d.Files.setInitState()
+	d.Status = Running
 
+	d.WG.Add(1)
+	go ShowProgress(d)
 	for i := range filePartCount {
 
 		f := d.Files[i]
 		nc := d.NetConns[i]
 		ds := d.DataStreams[i]
+	
+		if f.State == Completed || f.State == Corrupted {
+			continue
+		}
 
 		nc.Request.Header.Set("Range", buildRangeHeader(f))
-
+		
 		d.WG.Add(2)
 		go Fetch(nc, ds, d.WG)
-		go WriteToFile(f, ds, d.WG)
+		go WriteToFile(f, ds, &d.FWC, d.WG)
 
 	}
-
-	d.WG.Add(1)
-	go doPrintDLProgress(d.Files, d.WG)
-
+	
 	d.WG.Wait()
+	d.Status = Stopped
 }
 
 func buildDownload(filePartCount int, uri string) *Download {
@@ -99,8 +116,8 @@ func buildDataStream() *DataStream {
 
 	r, w := io.Pipe()
 	ds := &DataStream{
-		PipeReader: r,
-		PipeWriter: w,
+		R: r,
+		W: w,
 	}
 
 	return ds

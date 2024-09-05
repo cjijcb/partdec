@@ -62,18 +62,15 @@ func buildFile(name string) *FileIO {
 	return file
 }
 
-func WriteToFile(f *FileIO, r *DataStream, wg *sync.WaitGroup) {
+func WriteToFile(f *FileIO, ds *DataStream, fwc *FileWriterCount, wg *sync.WaitGroup) {
 	defer wg.Done()
-	f.addWriter(1)
-	f.WriteSIG <- struct{}{}
+	
+	*fwc += 1
 	f.Seek(0, io.SeekEnd)
-	f.ReadFrom(r.PipeReader)
-	f.addWriter(-1)
+	f.ReadFrom(ds.R)
+	*fwc -= 1
 }
 
-func (f *FileIO) addWriter(n int) {
-	*f.ActiveWriter += n
-}
 
 func (f *FileIO) getSize() int {
 	fi, err := f.Stat()
@@ -81,13 +78,6 @@ func (f *FileIO) getSize() int {
 	return int(fi.Size())
 }
 
-func (fs FileIOs) getTotalWriter() int {
-	totalWriter := 0
-	for _, f := range fs {
-		totalWriter += *f.ActiveWriter
-	}
-	return totalWriter
-}
 
 func (fs FileIOs) setInitState() {
 
