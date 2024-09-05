@@ -63,8 +63,7 @@ func WriteToFile(f *FileIO, ds *DataStream, wg *sync.WaitGroup) {
 
 	f.Seek(0, io.SeekEnd)
 	f.ReadFrom(ds.R)
-	ds.R.Close()
-	close(ds.RWDone)
+	
 }
 
 func (f *FileIO) getSize() int {
