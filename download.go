@@ -74,19 +74,23 @@ func (d *Download) Start() {
 	}()
 
 	d.WG.Wait()
-	fmt.Println("stopping")
 	d.Files.Close()
 	d.Status = Stopped
 }
 
 func buildDownload(filePartCount int, uri string) *Download {
 
+	hdrs, cl := GetHeaders(uri)
+
+	if cl == UnknownSize {
+		filePartCount = 1
+	}
+
 	files := make([]*FileIO, filePartCount)
 	dss := make([]*DataStream, filePartCount)
 	ncs := make([]*NetConn, filePartCount)
 
-	headers, contentLength := GetHeaders(uri)
-	fileName := buildFileName(uri, &headers)
+	fileName := buildFileName(uri, &hdrs)
 
 	for i := range filePartCount {
 
@@ -107,7 +111,7 @@ func buildDownload(filePartCount int, uri string) *Download {
 		DataStreams: dss,
 		URI:         uri,
 		WG:          &sync.WaitGroup{},
-		DataSize:    int(contentLength),
+		DataSize:    int(cl),
 		Status:      Starting,
 	}
 
@@ -115,19 +119,23 @@ func buildDownload(filePartCount int, uri string) *Download {
 }
 
 func buildRangeHeader(f *FileIO) string {
+
+	if f.StartByte == UnknownSize || f.EndByte == UnknownSize {
+		return "none"
+	}
+
 	rangeStart := f.StartByte + f.getSize()
 	rangeEnd := f.EndByte
 	if rangeStart > rangeEnd {
 		rangeStart = rangeEnd
 	}
-	rh := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)
-	fmt.Println(rh)
-	return rh
+	return fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)
+
 }
 
 func buildDataStream() *DataStream {
 
-	rwc := make(chan bool)
+	rwc := make(chan bool, 1)
 
 	r, w := io.Pipe()
 	ds := &DataStream{
@@ -141,5 +149,6 @@ func buildDataStream() *DataStream {
 
 func (ds *DataStream) Close() {
 	ds.W.Close()
+	ds.RWDone <- true
 	close(ds.RWDone)
 }
