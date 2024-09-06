@@ -28,6 +28,9 @@ const (
 	Resume    FileState = 1
 	Completed FileState = 2
 	Corrupted FileState = 3
+	Unknown   FileState = 4
+
+	UnknownSize = -1
 )
 
 func buildFileName(rawURL string, hdr *http.Header) string {
@@ -63,7 +66,7 @@ func WriteToFile(f *FileIO, ds *DataStream, wg *sync.WaitGroup) {
 
 	f.Seek(0, io.SeekEnd)
 	f.ReadFrom(ds.R)
-	
+
 }
 
 func (f *FileIO) getSize() int {
@@ -85,7 +88,9 @@ func (fs FileIOs) setInitState() {
 		sb := f.StartByte
 		eb := f.EndByte
 
-		if sb > eb {
+		if sb == UnknownSize || eb == UnknownSize {
+			f.State = Unknown
+		} else if sb > eb {
 			f.State = Corrupted
 		} else if size > eb-sb+1 {
 			f.State = Corrupted
@@ -102,6 +107,14 @@ func (fs FileIOs) setInitState() {
 }
 
 func (fs FileIOs) setByteRange(byteCount int) {
+
+	if byteCount == UnknownSize {
+		for _, f := range fs {
+			f.StartByte = UnknownSize
+			f.EndByte = UnknownSize
+		}
+		return
+	}
 
 	partCount := len(fs)
 	partSize := byteCount / partCount
