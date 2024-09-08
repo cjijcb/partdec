@@ -1,51 +1,59 @@
 package main
 
 import (
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
-	"sync"
 	//"sync/atomic"
 )
 
 type (
 	FileState uint8
 
-	FileIOs []*FileIO
+	ByteRange struct {
+		Start, End, Offset int
+	}
 
 	FileIO struct {
 		*os.File
-		StartByte, EndByte int
-		State              FileState
+		Scope     ByteRange
+		State     FileState
+		ClosedSIG chan bool
 	}
+
+	FileIOs []*FileIO
 )
 
 const (
-	New       FileState = 0
-	Resume    FileState = 1
-	Completed FileState = 2
-	Corrupted FileState = 3
-	Unknown   FileState = 4
+	New       FileState = iota
+	Resume    
+	Completed 
+	Corrupted 
+	Unknown   
 
 	UnknownSize = -1
 )
 
-func buildFileName(rawURL string, hdr *http.Header) string {
-	_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
-	fileName := params["filename"]
+func buildFileName(uri string, hdr *http.Header) string {
 
-	if fileName != "" {
+	if hdr == nil {
+		fileName := path.Base(uri)
+		return fileName
+	} else {
+		_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
+		fileName := params["filename"]
+
+		if fileName != "" {
+			return fileName
+		}
+
+		url, err := url.Parse(uri)
+		doHandle(err)
+		fileName = path.Base(url.Path)
 		return fileName
 	}
-
-	url, err := url.Parse(rawURL)
-	doHandle(err)
-
-	fileName = path.Base(url.Path)
-	return fileName
 
 }
 
@@ -55,19 +63,13 @@ func buildFile(name string) *FileIO {
 
 	doHandle(err)
 
-	file := &FileIO{
+	fileIO := &FileIO{
 		File: f,
+		ClosedSIG: make(chan bool,1),
 	}
-	return file
+	return fileIO
 }
 
-func WriteToFile(f *FileIO, ds *DataStream, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	f.Seek(0, io.SeekEnd)
-	f.ReadFrom(ds.R)
-
-}
 
 func (f *FileIO) getSize() int {
 	fi, err := f.Stat()
@@ -85,8 +87,8 @@ func (fs FileIOs) setInitState() {
 
 	for _, f := range fs {
 		size := f.getSize()
-		sb := f.StartByte
-		eb := f.EndByte
+		sb := f.Scope.Start
+		eb := f.Scope.End
 
 		if sb == UnknownSize || eb == UnknownSize {
 			f.State = Unknown
@@ -110,8 +112,8 @@ func (fs FileIOs) setByteRange(byteCount int) {
 
 	if byteCount == UnknownSize {
 		for _, f := range fs {
-			f.StartByte = UnknownSize
-			f.EndByte = UnknownSize
+			f.Scope.Start = UnknownSize
+			f.Scope.End = UnknownSize
 		}
 		return
 	}
@@ -129,9 +131,10 @@ func (fs FileIOs) setByteRange(byteCount int) {
 			rangeStart = ii
 			rangeEnd = (rangeStart - 1) + partSize
 		}
+		f := fs[i]
 
-		fs[i].StartByte = rangeStart
-		fs[i].EndByte = rangeEnd
-
+		f.Scope.Start = rangeStart
+		f.Scope.End = rangeEnd
+		f.Scope.Offset = f.getSize()
 	}
 }

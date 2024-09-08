@@ -8,22 +8,22 @@ import (
 )
 
 type (
-	DLStatus uint8
-
-	DataStream struct {
-		R      *io.PipeReader
-		W      *io.PipeWriter
-		RWDone chan bool
+	DataCaster interface {
+		SetScope(ByteRange)
+		DataCast() io.ReadCloser
 	}
+
+	DLStatus uint8
+	DLType   uint8
 
 	Download struct {
 		Files       FileIOs
-		NetConns    []*NetConn
-		DataStreams []*DataStream
-		URI         string
+		Sources		[]DataCaster
 		WG          *sync.WaitGroup
-		Status      DLStatus
+		URI         string
 		DataSize    int
+		Type        DLType
+		Status      DLStatus
 	}
 )
 
@@ -32,7 +32,8 @@ const (
 	Running
 	Stopping
 	Stopped
-	SIG = true
+	Local DLType = iota
+	Online
 )
 
 func (d *Download) Start() {
@@ -48,27 +49,23 @@ func (d *Download) Start() {
 	for i := range filePartCount {
 
 		f := d.Files[i]
-		nc := d.NetConns[i]
-		ds := d.DataStreams[i]
+		src := d.Sources[i]
 
 		if f.State == Completed || f.State == Corrupted {
-			ds.Close()
+			f.ClosedSIG <- true
 			continue
 		}
 
-		nc.Request.Header.Set("Range", buildRangeHeader(f))
-
-		d.WG.Add(2)
-		go Fetch(nc, ds, d.WG)
-		go WriteToFile(f, ds, d.WG)
+		d.WG.Add(1)
+		go Fetch(src, f, d.WG)
 
 	}
 
 	d.WG.Add(1)
 	go func() {
 		defer d.WG.Done()
-		for _, ds := range d.DataStreams {
-			<-ds.RWDone
+		for _, f := range d.Files {
+			<-f.ClosedSIG
 		}
 		d.Status = Stopping
 	}()
@@ -87,8 +84,8 @@ func buildDownload(filePartCount int, uri string) *Download {
 	}
 
 	files := make([]*FileIO, filePartCount)
-	dss := make([]*DataStream, filePartCount)
-	ncs := make([]*NetConn, filePartCount)
+	srcs := make([]DataCaster, filePartCount)
+	//src := &NetConn{}
 
 	fileName := buildFileName(uri, &hdrs)
 
@@ -97,58 +94,65 @@ func buildDownload(filePartCount int, uri string) *Download {
 		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
 		files[i] = buildFile(fileNameWithSuffix)
 
-		dss[i] = buildDataStream()
-
 		ct := buildClient()
 		req := buildReq(http.MethodGet, uri)
-		ncs[i] = buildNetConn(ct, req)
+		srcs[i] = buildNetConn(ct, req)
 
 	}
 
 	d := &Download{
 		Files:       files,
-		NetConns:    ncs,
-		DataStreams: dss,
-		URI:         uri,
+		Sources:     srcs,
 		WG:          &sync.WaitGroup{},
+		URI:         uri,
 		DataSize:    int(cl),
+		Type:        Online,
 		Status:      Starting,
 	}
 
 	return d
 }
 
-func buildRangeHeader(f *FileIO) string {
+func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-	if f.StartByte == UnknownSize || f.EndByte == UnknownSize {
-		return "none"
-	}
+	dc.SetScope(f.Scope)
 
-	rangeStart := f.StartByte + f.getSize()
-	rangeEnd := f.EndByte
-	if rangeStart > rangeEnd {
-		rangeStart = rangeEnd
-	}
-	return fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)
+	r := dc.DataCast()
 
+	io.Copy(f, r)
+	f.ClosedSIG <- true
+	r.Close()
 }
 
-func buildDataStream() *DataStream {
 
-	rwc := make(chan bool, 1)
 
-	r, w := io.Pipe()
-	ds := &DataStream{
-		R:      r,
-		W:      w,
-		RWDone: rwc,
-	}
-
-	return ds
-}
-
-func (ds *DataStream) Close() {
-	ds.W.Close()
-	ds.RWDone <- true
-	close(ds.RWDone)
-}
+//func buildLocalDownload(filePartCount int, srcFilePath string) *Download {
+//
+//	files := make([]*FileIO, filePartCount)
+//	dss := make([]*DataStream, filePartCount)
+//
+//	fileName := buildFileName(srcFilePath, nil)
+//	srcFile := buildFile(srcFilePath)
+//
+//	for i := range filePartCount {
+//
+//		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
+//		files[i] = buildFile(fileNameWithSuffix)
+//
+//		dss[i] = buildDataStream()
+//
+//	}
+//
+//	d := &Download{
+//		Files:       files,
+//		DataStreams: dss,
+//		WG:          &sync.WaitGroup{},
+//		DataSize:    srcFile.getSize(),
+//		Type:        Local,
+//		Status:      Starting,
+//	}
+//
+//	return d
+//
+//}
