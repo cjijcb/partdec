@@ -20,7 +20,7 @@ type (
 		*os.File
 		Scope     ByteRange
 		State     FileState
-		ClosedSIG chan bool
+		ClosingSIG chan bool
 	}
 
 	FileIOs []*FileIO
@@ -65,7 +65,7 @@ func buildFile(name string) *FileIO {
 
 	fileIO := &FileIO{
 		File: f,
-		ClosedSIG: make(chan bool,1),
+		ClosingSIG: make(chan bool,1),
 	}
 	return fileIO
 }
@@ -77,9 +77,16 @@ func (f *FileIO) getSize() int {
 	return int(fi.Size())
 }
 
+func (fs FileIOs) WaitClosingSIG() {
+	for _, f := range fs {
+		<-f.ClosingSIG
+	}
+}
+
 func (fs FileIOs) Close() {
 	for _, f := range fs {
 		f.Close()
+		close(f.ClosingSIG)
 	}
 }
 
