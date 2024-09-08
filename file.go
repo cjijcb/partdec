@@ -18,8 +18,8 @@ type (
 
 	FileIO struct {
 		*os.File
-		Scope     ByteRange
-		State     FileState
+		Scope      ByteRange
+		State      FileState
 		ClosingSIG chan bool
 	}
 
@@ -27,11 +27,11 @@ type (
 )
 
 const (
-	New       FileState = iota
-	Resume    
-	Completed 
-	Corrupted 
-	Unknown   
+	New FileState = iota
+	Resume
+	Completed
+	Corrupted
+	Unknown
 
 	UnknownSize = -1
 )
@@ -64,12 +64,11 @@ func buildFile(name string) *FileIO {
 	doHandle(err)
 
 	fileIO := &FileIO{
-		File: f,
-		ClosingSIG: make(chan bool,1),
+		File:       f,
+		ClosingSIG: make(chan bool, 1),
 	}
 	return fileIO
 }
-
 
 func (f *FileIO) getSize() int {
 	fi, err := f.Stat()
@@ -89,6 +88,24 @@ func (fs FileIOs) Close() {
 		close(f.ClosingSIG)
 	}
 }
+
+//func (f FileIO) SetScope(br ByteRange) {
+//
+//	f.
+//
+//}
+//
+//func (f FileIO) DataCast() io.ReadCloser {
+//
+//	resp, err := nc.Client.Do(nc.Request)
+//	doHandle(err)
+//
+//	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
+//		doHandle(errors.New(resp.Status))
+//	}
+//
+//	return resp.Body
+//}
 
 func (fs FileIOs) setInitState() {
 

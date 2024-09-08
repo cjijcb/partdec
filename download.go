@@ -9,21 +9,20 @@ import (
 
 type (
 	DataCaster interface {
-		SetScope(ByteRange)
-		DataCast() io.ReadCloser
+		DataCast(ByteRange) io.ReadCloser
 	}
 
 	DLStatus uint8
 	DLType   uint8
 
 	Download struct {
-		Files       FileIOs
-		Sources		[]DataCaster
-		WG          *sync.WaitGroup
-		URI         string
-		DataSize    int
-		Type        DLType
-		Status      DLStatus
+		Files    FileIOs
+		Sources  []DataCaster
+		WG       *sync.WaitGroup
+		URI      string
+		DataSize int
+		Type     DLType
+		Status   DLStatus
 	}
 )
 
@@ -94,13 +93,13 @@ func buildDownload(filePartCount int, uri string) *Download {
 	}
 
 	d := &Download{
-		Files:       files,
-		Sources:     srcs,
-		WG:          &sync.WaitGroup{},
-		URI:         uri,
-		DataSize:    int(cl),
-		Type:        Online,
-		Status:      Starting,
+		Files:    files,
+		Sources:  srcs,
+		WG:       &sync.WaitGroup{},
+		URI:      uri,
+		DataSize: int(cl),
+		Type:     Online,
+		Status:   Starting,
 	}
 
 	return d
@@ -109,17 +108,13 @@ func buildDownload(filePartCount int, uri string) *Download {
 func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	dc.SetScope(f.Scope)
+	r := dc.DataCast(f.Scope)
 
-	r := dc.DataCast()
-	
 	f.Seek(0, io.SeekEnd)
 	io.Copy(f, r)
 	f.ClosingSIG <- true
 	r.Close()
 }
-
-
 
 //func buildLocalDownload(filePartCount int, srcFilePath string) *Download {
 //
