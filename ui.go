@@ -14,8 +14,8 @@ func ShowProgress(d *Download) {
 
 	for d.Status == Running {
 		for _, f := range d.Files {
-			sb := f.StartByte
-			eb := f.EndByte
+			sb := f.Scope.Start
+			eb := f.Scope.End
 			fmt.Printf("state: %d | %d / %d\n", f.State, f.getSize(), (eb - sb + 1))
 		}
 		time.Sleep(50 * time.Millisecond)
@@ -23,8 +23,8 @@ func ShowProgress(d *Download) {
 	}
 
 	for _, f := range d.Files {
-		sb := f.StartByte
-		eb := f.EndByte
+		sb := f.Scope.Start
+		eb := f.Scope.End
 		fmt.Printf("state: %d | %d / %d\n", f.State, f.getSize(), (eb - sb + 1))
 	}
 

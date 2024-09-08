@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"sync"
+	"fmt"
 )
 
 type (
@@ -42,20 +42,40 @@ func buildClient() *http.Client {
 	return ct
 }
 
-func Fetch(nc *NetConn, ds *DataStream, wg *sync.WaitGroup) {
-	defer wg.Done()
-	//wg.Add(1)
+
+func (nc *NetConn) SetScope(br ByteRange) {
+
+	nc.Request.Header.Set("Range", buildRangeHeader(br))
+
+}
+
+func (nc *NetConn) DataCast() io.ReadCloser {
 
 	resp, err := nc.Client.Do(nc.Request)
 	doHandle(err)
-	defer resp.Body.Close()
 
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
 		doHandle(errors.New(resp.Status))
 	}
 
-	io.Copy(ds.W, resp.Body)
-	ds.Close()
+	return resp.Body
+}
+
+func buildRangeHeader(br ByteRange) string {
+
+	if br.Start == UnknownSize || br.End == UnknownSize {
+		return "none"
+	}
+
+	rangeStart := br.Start + br.Offset
+	rangeEnd := br.End
+
+	if rangeStart > rangeEnd {
+		rangeStart = rangeEnd
+	}
+
+	return fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)
+
 }
 
 func GetHeaders(rawURL string) (http.Header, int64) {
