@@ -52,7 +52,7 @@ func (d *Download) Start() {
 		src := d.Sources[i]
 
 		if f.State == Completed || f.State == Corrupted {
-			f.ClosedSIG <- true
+			f.ClosingSIG <- true
 			continue
 		}
 
@@ -61,14 +61,8 @@ func (d *Download) Start() {
 
 	}
 
-	d.WG.Add(1)
-	go func() {
-		defer d.WG.Done()
-		for _, f := range d.Files {
-			<-f.ClosedSIG
-		}
-		d.Status = Stopping
-	}()
+	d.Files.WaitClosingSIG()
+	d.Status = Stopping
 
 	d.WG.Wait()
 	d.Files.Close()
@@ -85,7 +79,6 @@ func buildDownload(filePartCount int, uri string) *Download {
 
 	files := make([]*FileIO, filePartCount)
 	srcs := make([]DataCaster, filePartCount)
-	//src := &NetConn{}
 
 	fileName := buildFileName(uri, &hdrs)
 
@@ -119,9 +112,10 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 	dc.SetScope(f.Scope)
 
 	r := dc.DataCast()
-
+	
+	f.Seek(0, io.SeekEnd)
 	io.Copy(f, r)
-	f.ClosedSIG <- true
+	f.ClosingSIG <- true
 	r.Close()
 }
 
