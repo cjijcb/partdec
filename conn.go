@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
-	"fmt"
 )
 
 type (
@@ -42,14 +42,9 @@ func buildClient() *http.Client {
 	return ct
 }
 
-
-func (nc *NetConn) SetScope(br ByteRange) {
+func (nc *NetConn) DataCast(br ByteRange) io.ReadCloser {
 
 	nc.Request.Header.Set("Range", buildRangeHeader(br))
-
-}
-
-func (nc *NetConn) DataCast() io.ReadCloser {
 
 	resp, err := nc.Client.Do(nc.Request)
 	doHandle(err)
