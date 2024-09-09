@@ -1,12 +1,12 @@
 package main
 
 import (
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
-	//"sync/atomic"
 )
 
 type (
@@ -36,30 +36,29 @@ const (
 	UnknownSize = -1
 )
 
-func buildFileName(uri string, hdr *http.Header) string {
+func buildFileName(uri string, hdr http.Header) string {
 
 	if hdr == nil {
 		fileName := path.Base(uri)
 		return fileName
+	}
+
+	_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
+
+	if fileName := params["filename"]; fileName != "" {
+		return fileName
 	} else {
-		_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
-		fileName := params["filename"]
-
-		if fileName != "" {
-			return fileName
-		}
-
 		url, err := url.Parse(uri)
 		doHandle(err)
-		fileName = path.Base(url.Path)
+		fileName := path.Base(url.Path)
 		return fileName
 	}
 
 }
 
-func buildFile(name string) *FileIO {
+func buildFile(name string, flag int) *FileIO {
 
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, 0666)
+	f, err := os.OpenFile(name, os.O_CREATE|flag, 0666)
 
 	doHandle(err)
 
@@ -89,23 +88,22 @@ func (fs FileIOs) Close() {
 	}
 }
 
-//func (f FileIO) SetScope(br ByteRange) {
-//
-//	f.
-//
-//}
-//
-//func (f FileIO) DataCast() io.ReadCloser {
-//
-//	resp, err := nc.Client.Do(nc.Request)
-//	doHandle(err)
-//
-//	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
-//		doHandle(errors.New(resp.Status))
-//	}
-//
-//	return resp.Body
-//}
+func (f FileIO) DataCast(br ByteRange) io.ReadCloser {
+
+	rangeStart := br.Start + br.Offset
+	rangeEnd := br.End
+
+	if rangeStart > rangeEnd {
+		rangeStart = rangeEnd
+	}
+
+	rangeEnd = rangeEnd - rangeStart + 1
+
+	sr := io.NewSectionReader(f, int64(rangeStart), int64(rangeEnd))
+
+	return io.NopCloser(sr)
+
+}
 
 func (fs FileIOs) setInitState() {
 
