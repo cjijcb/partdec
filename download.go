@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sync"
 )
 
@@ -68,9 +69,23 @@ func (d *Download) Start() {
 	d.Status = Stopped
 }
 
+
+func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	r := dc.DataCast(f.Scope)
+
+	f.Seek(0, io.SeekEnd)
+	io.Copy(f, r)
+	f.ClosingSIG <- true
+	r.Close()
+}
+
+
+
 func buildDownload(filePartCount int, uri string) *Download {
 
-	hdrs, cl := GetHeaders(uri)
+	hdr, cl := GetHeaders(uri)
 
 	if cl == UnknownSize {
 		filePartCount = 1
@@ -79,12 +94,12 @@ func buildDownload(filePartCount int, uri string) *Download {
 	files := make([]*FileIO, filePartCount)
 	srcs := make([]DataCaster, filePartCount)
 
-	fileName := buildFileName(uri, &hdrs)
+	fileName := buildFileName(uri, hdr)
 
 	for i := range filePartCount {
 
 		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
-		files[i] = buildFile(fileNameWithSuffix)
+		files[i] = buildFile(fileNameWithSuffix, os.O_WRONLY)
 
 		ct := buildClient()
 		req := buildReq(http.MethodGet, uri)
@@ -105,43 +120,34 @@ func buildDownload(filePartCount int, uri string) *Download {
 	return d
 }
 
-func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
-	defer wg.Done()
 
-	r := dc.DataCast(f.Scope)
+func buildLocalDownload(filePartCount int, srcFilePath string) *Download {
 
-	f.Seek(0, io.SeekEnd)
-	io.Copy(f, r)
-	f.ClosingSIG <- true
-	r.Close()
+	files := make([]*FileIO, filePartCount)
+	srcs := make([]DataCaster, filePartCount)
+	
+	fileName := buildFileName(srcFilePath, nil)
+
+	for i := range filePartCount {
+
+		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
+		files[i] = buildFile(fileNameWithSuffix, os.O_WRONLY)
+
+		srcs[i] = buildFile(srcFilePath, os.O_RDONLY)
+		
+	}
+
+	srcf := srcs[0].(*FileIO)
+
+	d := &Download{
+		Files:       files,
+		Sources: 	 srcs,
+		WG:          &sync.WaitGroup{},
+		DataSize:    srcf.getSize(),
+		Type:        Local,
+		Status:      Starting,
+	}
+
+	return d
+
 }
-
-//func buildLocalDownload(filePartCount int, srcFilePath string) *Download {
-//
-//	files := make([]*FileIO, filePartCount)
-//	dss := make([]*DataStream, filePartCount)
-//
-//	fileName := buildFileName(srcFilePath, nil)
-//	srcFile := buildFile(srcFilePath)
-//
-//	for i := range filePartCount {
-//
-//		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
-//		files[i] = buildFile(fileNameWithSuffix)
-//
-//		dss[i] = buildDataStream()
-//
-//	}
-//
-//	d := &Download{
-//		Files:       files,
-//		DataStreams: dss,
-//		WG:          &sync.WaitGroup{},
-//		DataSize:    srcFile.getSize(),
-//		Type:        Local,
-//		Status:      Starting,
-//	}
-//
-//	return d
-//
-//}
