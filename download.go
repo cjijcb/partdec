@@ -73,9 +73,13 @@ func (d *Download) Start() {
 func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	r := dc.DataCast(f.Scope)
+	if f.State == Unknown {
+		f.Truncate(0)
+	}
 
 	f.Seek(0, io.SeekEnd)
+	r := dc.DataCast(f.Scope)
+
 	io.Copy(f, r)
 	f.ClosingSIG <- true
 	r.Close()
@@ -86,6 +90,8 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 func buildDownload(filePartCount int, uri string) *Download {
 
 	hdr, cl := GetHeaders(uri)
+
+	cl = -1
 
 	if cl == UnknownSize {
 		filePartCount = 1
