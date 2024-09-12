@@ -69,7 +69,6 @@ func (d *Download) Start() {
 	d.Status = Stopped
 }
 
-
 func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -86,8 +85,20 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 }
 
 
+func buildDownload(filePartCount int, uri string) (*Download, error) {
+    if ok, _ := isFile(uri); ok {
+        return buildLocalDownload(filePartCount, uri), nil
+    }
 
-func buildDownload(filePartCount int, uri string) *Download {
+    if ok, _ := isURL(uri); ok {
+        return buildOnlineDownload(filePartCount, uri), nil
+    }
+
+    return nil, fmt.Errorf("%s: no such file or invalid url", uri)
+}
+
+
+func buildOnlineDownload(filePartCount int, uri string) *Download {
 
 	hdr, cl := GetHeaders(uri)
 
@@ -126,12 +137,11 @@ func buildDownload(filePartCount int, uri string) *Download {
 	return d
 }
 
-
 func buildLocalDownload(filePartCount int, srcFilePath string) *Download {
 
 	files := make([]*FileIO, filePartCount)
 	srcs := make([]DataCaster, filePartCount)
-	
+
 	fileName := buildFileName(srcFilePath, nil)
 
 	for i := range filePartCount {
@@ -140,18 +150,21 @@ func buildLocalDownload(filePartCount int, srcFilePath string) *Download {
 		files[i] = buildFile(fileNameWithSuffix, os.O_WRONLY)
 
 		srcs[i] = buildFile(srcFilePath, os.O_RDONLY)
-		
+
 	}
 
-	srcf := srcs[0].(*FileIO)
+	sfinfo, _ := os.Stat(srcFilePath)
+	ds := int(sfinfo.Size())
+
+	//srcf := srcs[0].(*FileIO)
 
 	d := &Download{
-		Files:       files,
-		Sources: 	 srcs,
-		WG:          &sync.WaitGroup{},
-		DataSize:    srcf.getSize(),
-		Type:        Local,
-		Status:      Starting,
+		Files:    files,
+		Sources:  srcs,
+		WG:       &sync.WaitGroup{},
+		DataSize: ds,
+		Type:     Local,
+		Status:   Starting,
 	}
 
 	return d
