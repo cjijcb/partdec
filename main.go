@@ -9,7 +9,7 @@ func main() {
 	//URI := "trusrc.dat"
 	dstDirs := []string{"dir1/","dir2/"}
 
-	d, err  := buildDownload(FileNumParts, dstDirs, URI)
+	d, err := buildDownload(FileNumParts, dstDirs, URI)
 	doHandle(err)
 	d.Start()
 

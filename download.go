@@ -2,11 +2,11 @@ package main
 
 import (
 	//"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"os"
 	"sync"
-	"errors"
 )
 
 type (
@@ -85,20 +85,18 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 	r.Close()
 }
 
-
 func buildDownload(partCount int, dstDirs []string, uri string) (*Download, error) {
 
 	if ok, _ := isFile(uri); ok {
-        return buildLocalDownload(partCount, dstDirs, uri), nil
-    }
+		return buildLocalDownload(partCount, dstDirs, uri), nil
+	}
 
-    if ok, _ := isURL(uri); ok {
-        return buildOnlineDownload(partCount, dstDirs, uri), nil
-    } 
+	if ok, _ := isURL(uri); ok {
+		return buildOnlineDownload(partCount, dstDirs, uri), nil
+	}
 
-    return nil, errors.New("invalid file or url")
+	return nil, errors.New("invalid file or url")
 }
-
 
 func buildOnlineDownload(partCount int, dstDirs []string, uri string) *Download {
 
@@ -114,7 +112,7 @@ func buildOnlineDownload(partCount int, dstDirs []string, uri string) *Download 
 
 	fios, err := buildFileIOs(partCount, basePath, dstDirs)
 	doHandle(err)
-	
+
 	srcs := make([]DataCaster, partCount)
 	for i := range partCount {
 
@@ -139,21 +137,18 @@ func buildOnlineDownload(partCount int, dstDirs []string, uri string) *Download 
 
 func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) *Download {
 
-
 	basePath := buildFileName(srcFilePath, nil)
 
 	fios, err := buildFileIOs(partCount, basePath, dstDirs)
 	doHandle(err)
-	
 
 	srcs := make([]DataCaster, partCount)
 	for i := range partCount {
 
-		fio, _ := buildFileIO(srcFilePath, os.O_RDONLY)
-		srcs[i] = fio 
+		fio, _ := buildFileIO(srcFilePath, ".", os.O_RDONLY)
+		srcs[i] = fio
 
 	}
-
 
 	srcf := srcs[0].(*FileIO)
 

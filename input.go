@@ -16,7 +16,7 @@ func isFile(path string) (bool, error) {
 		return info.Mode().IsRegular(), nil
 	} else {
 		return false, err
-	} 
+	}
 }
 
 func isDir(path string) (bool, error) {
