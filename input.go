@@ -12,16 +12,16 @@ func getRawURL(a []string) string {
 }
 
 func isFile(path string) (bool, error) {
-	if info, err := os.Stat(filepath.Clean(path)); info.Mode().IsRegular() {
-		return true, err
+	if info, err := os.Stat(filepath.Clean(path)); err == nil {
+		return info.Mode().IsRegular(), nil
 	} else {
 		return false, err
 	} 
 }
 
 func isDir(path string) (bool, error) {
-	if info, err := os.Stat(filepath.Clean(path)); info.Mode().IsDir() {
-		return true, err
+	if info, err := os.Stat(filepath.Clean(path)); err == nil {
+		return info.Mode().IsDir(), nil
 	} else {
 		return false, err
 	}

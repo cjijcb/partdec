@@ -16,7 +16,13 @@ func ShowProgress(d *Download) {
 		for _, f := range d.Files {
 			sb := f.Scope.Start
 			eb := f.Scope.End
-			fmt.Printf("state: %d | %d / %d\n", f.State, f.getSize(), (eb - sb + 1))
+			fmt.Printf(
+				"state: %d | %d / %d | %s\n",
+				f.State,
+				f.getSize(),
+				(eb - sb + 1),
+				f.Path.Relative,
+			)
 		}
 		time.Sleep(50 * time.Millisecond)
 		//fmt.Printf(strings.Repeat(clearLine, lineCount))
