@@ -1,11 +1,12 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 	"io"
 	"net/http"
 	"os"
 	"sync"
+	"errors"
 )
 
 type (
@@ -85,38 +86,37 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 }
 
 
-func buildDownload(filePartCount int, uri string) (*Download, error) {
-    if ok, _ := isFile(uri); ok {
-        return buildLocalDownload(filePartCount, uri), nil
+func buildDownload(partCount int, dstDirs []string, uri string) (*Download, error) {
+
+	if ok, _ := isFile(uri); ok {
+        return buildLocalDownload(partCount, dstDirs, uri), nil
     }
 
     if ok, _ := isURL(uri); ok {
-        return buildOnlineDownload(filePartCount, uri), nil
-    }
+        return buildOnlineDownload(partCount, dstDirs, uri), nil
+    } 
 
-    return nil, fmt.Errorf("%s: no such file or invalid url", uri)
+    return nil, errors.New("invalid file or url")
 }
 
 
-func buildOnlineDownload(filePartCount int, uri string) *Download {
+func buildOnlineDownload(partCount int, dstDirs []string, uri string) *Download {
 
 	hdr, cl := GetHeaders(uri)
 
-	cl = -1
+	//cl = -1
 
 	if cl == UnknownSize {
-		filePartCount = 1
+		partCount = 1
 	}
 
-	files := make([]*FileIO, filePartCount)
-	srcs := make([]DataCaster, filePartCount)
+	basePath := buildFileName(uri, hdr)
 
-	fileName := buildFileName(uri, hdr)
-
-	for i := range filePartCount {
-
-		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
-		files[i] = buildFile(fileNameWithSuffix, os.O_WRONLY)
+	fios, err := buildFileIOs(partCount, basePath, dstDirs)
+	doHandle(err)
+	
+	srcs := make([]DataCaster, partCount)
+	for i := range partCount {
 
 		ct := buildClient()
 		req := buildReq(http.MethodGet, uri)
@@ -125,7 +125,7 @@ func buildOnlineDownload(filePartCount int, uri string) *Download {
 	}
 
 	d := &Download{
-		Files:    files,
+		Files:    fios,
 		Sources:  srcs,
 		WG:       &sync.WaitGroup{},
 		URI:      uri,
@@ -137,32 +137,31 @@ func buildOnlineDownload(filePartCount int, uri string) *Download {
 	return d
 }
 
-func buildLocalDownload(filePartCount int, srcFilePath string) *Download {
+func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) *Download {
 
-	files := make([]*FileIO, filePartCount)
-	srcs := make([]DataCaster, filePartCount)
 
-	fileName := buildFileName(srcFilePath, nil)
+	basePath := buildFileName(srcFilePath, nil)
 
-	for i := range filePartCount {
+	fios, err := buildFileIOs(partCount, basePath, dstDirs)
+	doHandle(err)
+	
 
-		fileNameWithSuffix := fmt.Sprintf("%s_%d", fileName, i)
-		files[i] = buildFile(fileNameWithSuffix, os.O_WRONLY)
+	srcs := make([]DataCaster, partCount)
+	for i := range partCount {
 
-		srcs[i] = buildFile(srcFilePath, os.O_RDONLY)
+		fio, _ := buildFileIO(srcFilePath, os.O_RDONLY)
+		srcs[i] = fio 
 
 	}
 
-	sfinfo, _ := os.Stat(srcFilePath)
-	ds := int(sfinfo.Size())
 
-	//srcf := srcs[0].(*FileIO)
+	srcf := srcs[0].(*FileIO)
 
 	d := &Download{
-		Files:    files,
+		Files:    fios,
 		Sources:  srcs,
 		WG:       &sync.WaitGroup{},
-		DataSize: ds,
+		DataSize: srcf.getSize(),
 		Type:     Local,
 		Status:   Starting,
 	}

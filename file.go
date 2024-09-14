@@ -7,10 +7,16 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"errors"
+	"fmt"
 )
 
 type (
 	FileState uint8
+	FilePath struct {
+		Base, DstDir, Relative string
+	}
 
 	ByteRange struct {
 		Start, End, Offset int
@@ -20,6 +26,7 @@ type (
 		*os.File
 		Scope      ByteRange
 		State      FileState
+		Path		FilePath
 		ClosingSIG chan bool
 	}
 
@@ -56,37 +63,65 @@ func buildFileName(uri string, hdr http.Header) string {
 
 }
 
-func buildFile(name string, flag int) *FileIO {
 
-	f, err := os.OpenFile(name, os.O_CREATE|flag, 0666)
 
-	doHandle(err)
+func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
 
-	fileIO := &FileIO{
-		File:       f,
-		ClosingSIG: make(chan bool, 1),
-	}
-	return fileIO
+    var err error
+
+    fios := make([]*FileIO, partCount)
+    dirCount := len(dstDirs)
+    freqDistrib := partCount / dirCount
+    xtraDistrib := partCount % dirCount
+
+    var idx, xtra int
+    for _, dir := range dstDirs {
+
+        if xtraDistrib > 0 {
+            xtra = 1
+        } else {
+            xtra = 0
+        }
+
+        for range freqDistrib + xtra {
+
+            suffix := fmt.Sprintf("_%d", idx)
+            basePathSfx := filepath.Clean(basePath + suffix)
+            dstDir := filepath.Clean(dir) + string(os.PathSeparator)
+            rlvPath := filepath.Clean(dstDir + basePathSfx)
+
+            fio, e := buildFileIO(rlvPath, os.O_WRONLY)
+            err = errors.Join(err, e)
+
+            fio.Path.Base = basePathSfx
+            fio.Path.DstDir = dstDir
+            fio.Path.Relative = rlvPath
+			fios[idx] = fio
+
+            idx++
+        }
+
+        xtraDistrib--
+
+    }
+
+    return fios, err
+
 }
 
-func (f *FileIO) getSize() int {
-	fi, err := f.Stat()
-	doHandle(err)
-	return int(fi.Size())
+
+func buildFileIO(path string, oflag int) (*FileIO, error) {
+
+    f, err := os.OpenFile(path, os.O_CREATE|oflag, 0640)
+
+    fio := &FileIO{
+        File:       f,
+        ClosingSIG: make(chan bool, 1),
+    }
+
+    return fio, err
 }
 
-func (fs FileIOs) WaitClosingSIG() {
-	for _, f := range fs {
-		<-f.ClosingSIG
-	}
-}
-
-func (fs FileIOs) Close() {
-	for _, f := range fs {
-		f.Close()
-		close(f.ClosingSIG)
-	}
-}
 
 func (f FileIO) DataCast(br ByteRange) io.ReadCloser {
 
@@ -160,3 +195,26 @@ func (fs FileIOs) setByteRange(byteCount int) {
 		f.Scope.Offset = f.getSize()
 	}
 }
+
+
+func (f *FileIO) getSize() int {
+	fi, err := f.Stat()
+	doHandle(err)
+	return int(fi.Size())
+}
+
+func (fs FileIOs) WaitClosingSIG() {
+	for _, f := range fs {
+		<-f.ClosingSIG
+	}
+}
+
+func (fs FileIOs) Close() {
+	for _, f := range fs {
+		f.Close()
+		close(f.ClosingSIG)
+	}
+}
+
+
+
