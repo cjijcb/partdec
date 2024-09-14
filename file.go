@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -8,13 +10,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"errors"
-	"fmt"
 )
 
 type (
 	FileState uint8
-	FilePath struct {
+	FilePath  struct {
 		Base, DstDir, Relative string
 	}
 
@@ -26,7 +26,7 @@ type (
 		*os.File
 		Scope      ByteRange
 		State      FileState
-		Path		FilePath
+		Path       FilePath
 		ClosingSIG chan bool
 	}
 
@@ -63,63 +63,69 @@ func buildFileName(uri string, hdr http.Header) string {
 
 }
 
-
-
 func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
 
-    var err error
+	var err error
 
-    fios := make([]*FileIO, partCount)
-    dirCount := len(dstDirs)
-    freqDistrib := partCount / dirCount
-    xtraDistrib := partCount % dirCount
+	if dstDirs == nil {
+		dstDirs = []string{"."}
+	}
 
-    var idx, xtra int
-    for _, dir := range dstDirs {
+	fios := make([]*FileIO, partCount)
+	dirCount := len(dstDirs)
+	freqDistrib := partCount / dirCount
+	xtraDistrib := partCount % dirCount
 
-        if xtraDistrib > 0 {
-            xtra = 1
-        } else {
-            xtra = 0
-        }
+	var idx, xtra int
+	for _, dir := range dstDirs {
 
-        for range freqDistrib + xtra {
+		xtra = 0
+		if xtraDistrib > 0 {
+			xtra = 1
+			xtraDistrib--
+		}
 
-            suffix := fmt.Sprintf("_%d", idx)
-            basePathSfx := filepath.Clean(basePath + suffix)
-            dstDir := filepath.Clean(dir) + string(os.PathSeparator)
-            rlvPath := filepath.Clean(dstDir + basePathSfx)
+		for range freqDistrib + xtra {
 
-            fio, e := buildFileIO(rlvPath, os.O_WRONLY)
-            err = errors.Join(err, e)
+			suffix := fmt.Sprintf("_%d", idx)
+			basePathSfx := filepath.Clean(basePath + suffix)
 
-            fio.Path.Base = basePathSfx
-            fio.Path.DstDir = dstDir
-            fio.Path.Relative = rlvPath
+			fio, e := buildFileIO(basePathSfx, dir, os.O_WRONLY)
+			err = errors.Join(err, e)
+
 			fios[idx] = fio
 
-            idx++
-        }
+			idx++
+		}
 
-        xtraDistrib--
+	}
 
-    }
-
-    return fios, err
+	return fios, err
 
 }
 
 
-func buildFileIO(path string, oflag int) (*FileIO, error) {
+func buildFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 
-    f, err := os.OpenFile(path, os.O_CREATE|oflag, 0640)
+	pathSpr := string(os.PathSeparator)
 
-    fio := &FileIO{
-        File:       f,
-        ClosingSIG: make(chan bool, 1),
-    }
+	basePath = filepath.Clean(basePath)
+	dstDir 	= filepath.Clean(dstDir) + pathSpr
+	relvPath := filepath.Clean(dstDir + basePath)
 
-    return fio, err
+	f, err := os.OpenFile(relvPath, os.O_CREATE|oflag, 0640)
+
+	fio := &FileIO{
+		File:       f,
+		Path:		FilePath{
+						Base: basePath,
+						DstDir: dstDir,
+						Relative: relvPath,
+					},
+		ClosingSIG: make(chan bool, 1),
+	}
+	
+	return fio, err
 }
 
 
@@ -196,7 +202,6 @@ func (fs FileIOs) setByteRange(byteCount int) {
 	}
 }
 
-
 func (f *FileIO) getSize() int {
 	fi, err := f.Stat()
 	doHandle(err)
@@ -215,6 +220,3 @@ func (fs FileIOs) Close() {
 		close(f.ClosingSIG)
 	}
 }
-
-
-
