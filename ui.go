@@ -14,12 +14,13 @@ func ShowProgress(d *Download) {
 
 	for d.Status == Running {
 		for _, f := range d.Files {
+			size, _ := f.Size()
 			sb := f.Scope.Start
 			eb := f.Scope.End
 			fmt.Printf(
 				"state: %d | %d / %d | %s\n",
 				f.State,
-				f.getSize(),
+				size,
 				(eb - sb + 1),
 				f.Path.Relative,
 			)
@@ -29,9 +30,10 @@ func ShowProgress(d *Download) {
 	}
 
 	for _, f := range d.Files {
+		size, _ := f.Size()
 		sb := f.Scope.Start
 		eb := f.Scope.End
-		fmt.Printf("state: %d | %d / %d\n", f.State, f.getSize(), (eb - sb + 1))
+		fmt.Printf("state: %d | %d / %d\n", f.State, size, (eb - sb + 1))
 	}
 
 }

@@ -4,7 +4,7 @@ import (
 	"log"
 )
 
-func doHandle(err error) {
+func FetchErrHandle(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}

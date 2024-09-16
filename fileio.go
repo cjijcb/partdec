@@ -54,8 +54,7 @@ func buildFileName(uri string, hdr http.Header) string {
 	if fileName := params["filename"]; fileName != "" {
 		return fileName
 	} else {
-		url, err := url.Parse(uri)
-		doHandle(err)
+		url, _ := url.Parse(uri)
 		fileName := path.Base(url.Path)
 		return fileName
 	}
@@ -147,10 +146,13 @@ func (f FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 }
 
-func (fs FileIOs) setInitState() {
+func (fs FileIOs) setInitState() error {
 
 	for _, f := range fs {
-		size := f.getSize()
+		size, err := f.Size()
+		if err != nil {
+			return err
+		}
 		sb := f.Scope.Start
 		eb := f.Scope.End
 
@@ -170,16 +172,18 @@ func (fs FileIOs) setInitState() {
 
 	}
 
+	return nil
+
 }
 
-func (fs FileIOs) setByteRange(byteCount int) {
+func (fs FileIOs) setByteRange(byteCount int) error {
 
 	if byteCount == UnknownSize {
 		for _, f := range fs {
 			f.Scope.Start = UnknownSize
 			f.Scope.End = UnknownSize
 		}
-		return
+		return nil
 	}
 
 	partCount := len(fs)
@@ -199,14 +203,24 @@ func (fs FileIOs) setByteRange(byteCount int) {
 
 		f.Scope.Start = rangeStart
 		f.Scope.End = rangeEnd
-		f.Scope.Offset = f.getSize()
+		size, err := f.Size()
+
+		if err != nil {
+			return err
+		}
+
+		f.Scope.Offset = size
 	}
+	
+	return nil
 }
 
-func (f *FileIO) getSize() int {
+func (f *FileIO) Size() (int, error) {
 	fi, err := f.Stat()
-	doHandle(err)
-	return int(fi.Size())
+	if err != nil {
+		return UnknownSize, nil
+	}
+	return int(fi.Size()), nil
 }
 
 func (fs FileIOs) WaitClosingSIG() {
