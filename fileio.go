@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -65,8 +64,6 @@ func buildFileName(uri string, hdr http.Header) string {
 
 func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
 
-	var err error
-
 	if dstDirs == nil {
 		dstDirs = []string{"."}
 	}
@@ -90,8 +87,10 @@ func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 			suffix := fmt.Sprintf("_%d", idx)
 			basePathSfx := filepath.Clean(basePath + suffix)
 
-			fio, e := buildFileIO(basePathSfx, dir, os.O_WRONLY)
-			err = errors.Join(err, e)
+			fio, err := buildFileIO(basePathSfx, dir, os.O_WRONLY)
+			if err != nil {
+				return nil, err
+			}
 
 			fios[idx] = fio
 
@@ -100,36 +99,38 @@ func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 	}
 
-	return fios, err
+	return fios, nil
 
 }
-
 
 func buildFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 
 	pathSpr := string(os.PathSeparator)
 
 	basePath = filepath.Clean(basePath)
-	dstDir 	= filepath.Clean(dstDir) + pathSpr
+	dstDir = filepath.Clean(dstDir) + pathSpr
 	relvPath := filepath.Clean(dstDir + basePath)
 
 	f, err := os.OpenFile(relvPath, os.O_CREATE|oflag, 0640)
 
+	if err != nil {
+		return nil, err
+	}
+
 	fio := &FileIO{
-		File:       f,
-		Path:		FilePath{
-						Base: basePath,
-						DstDir: dstDir,
-						Relative: relvPath,
-					},
+		File: f,
+		Path: FilePath{
+			Base:     basePath,
+			DstDir:   dstDir,
+			Relative: relvPath,
+		},
 		ClosingSIG: make(chan bool, 1),
 	}
-	
+
 	return fio, err
 }
 
-
-func (f FileIO) DataCast(br ByteRange) io.ReadCloser {
+func (f FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 	rangeStart := br.Start + br.Offset
 	rangeEnd := br.End
@@ -142,7 +143,7 @@ func (f FileIO) DataCast(br ByteRange) io.ReadCloser {
 
 	sr := io.NewSectionReader(f, int64(rangeStart), int64(rangeEnd))
 
-	return io.NopCloser(sr)
+	return io.NopCloser(sr), nil
 
 }
 

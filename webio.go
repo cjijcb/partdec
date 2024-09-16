@@ -8,30 +8,32 @@ import (
 )
 
 type (
-	NetConn struct {
+	WebIO struct {
 		Client  *http.Client
 		Request *http.Request
 	}
 )
 
-func buildNetConn(ct *http.Client, req *http.Request) *NetConn {
-	nc := &NetConn{
+func buildWebIO(ct *http.Client, req *http.Request) *WebIO {
+	wbio := &WebIO{
 		Client:  ct,
 		Request: req,
 	}
 
-	return nc
+	return wbio
 }
 
-func buildReq(method string, rawURL string) *http.Request {
+func buildReq(method string, rawURL string) (*http.Request, error) {
 	req, err := http.NewRequest(method, rawURL, nil)
-	doHandle(err)
+	if err != nil {
+		return nil, err
+	}
 	req.Proto = "http/1.1"
 	req.ProtoMajor = 1
 	req.ProtoMinor = 1
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", "fssn/1.0.0")
-	return req
+	return req, nil
 }
 
 func buildClient() *http.Client {
@@ -42,18 +44,20 @@ func buildClient() *http.Client {
 	return ct
 }
 
-func (nc *NetConn) DataCast(br ByteRange) io.ReadCloser {
+func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
-	nc.Request.Header.Set("Range", buildRangeHeader(br))
+	wbio.Request.Header.Set("Range", buildRangeHeader(br))
 
-	resp, err := nc.Client.Do(nc.Request)
-	doHandle(err)
-
-	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
-		doHandle(errors.New(resp.Status))
+	resp, err := wbio.Client.Do(wbio.Request)
+	if err != nil {
+		return nil, err
 	}
 
-	return resp.Body
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
+		return nil, errors.New(resp.Status)
+	}
+
+	return resp.Body, nil
 }
 
 func buildRangeHeader(br ByteRange) string {
@@ -73,12 +77,22 @@ func buildRangeHeader(br ByteRange) string {
 
 }
 
-func GetHeaders(rawURL string) (http.Header, int64) {
+func GetHeaders(rawURL string) (http.Header, int64, error) {
+
 	ct := &http.Client{}
 	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
-	doHandle(err)
+
+	if err != nil {
+		return nil, UnknownSize, err
+	}
+
 	req.Header.Set("User-Agent", "fssn/1.0.0")
 	resp, err := ct.Do(req)
-	doHandle(err)
-	return resp.Header, resp.ContentLength
+
+	if err != nil {
+		return nil, UnknownSize, err
+	}
+
+	return resp.Header, resp.ContentLength, nil
+
 }

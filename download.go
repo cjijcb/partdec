@@ -11,7 +11,7 @@ import (
 
 type (
 	DataCaster interface {
-		DataCast(ByteRange) io.ReadCloser
+		DataCast(ByteRange) (io.ReadCloser, error)
 	}
 
 	DLStatus uint8
@@ -70,39 +70,53 @@ func (d *Download) Start() {
 	d.Status = Stopped
 }
 
-func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
+func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) error {
 	defer wg.Done()
 
 	if f.State == Unknown {
-		f.Truncate(0)
+		if err := f.Truncate(0); err != nil {
+			return err
+		}
 	}
 
 	f.Seek(0, io.SeekEnd)
-	r := dc.DataCast(f.Scope)
+	r, err := dc.DataCast(f.Scope)
+	if err != nil {
+		return err
+	}
 
-	io.Copy(f, r)
+	_, err = io.Copy(f, r)
+	if err != nil {
+		return err
+	}
+
 	f.ClosingSIG <- true
 	r.Close()
+	return nil
+
 }
 
 func buildDownload(partCount int, dstDirs []string, uri string) (*Download, error) {
 
 	if ok, _ := isFile(uri); ok {
-		return buildLocalDownload(partCount, dstDirs, uri), nil
+		d, err := buildLocalDownload(partCount, dstDirs, uri)
+		return d, err
 	}
 
 	if ok, _ := isURL(uri); ok {
-		return buildOnlineDownload(partCount, dstDirs, uri), nil
+		d, err := buildOnlineDownload(partCount, dstDirs, uri)
+		return d, err
 	}
 
 	return nil, errors.New("invalid file or url")
 }
 
-func buildOnlineDownload(partCount int, dstDirs []string, uri string) *Download {
+func buildOnlineDownload(partCount int, dstDirs []string, uri string) (*Download, error) {
 
-	hdr, cl := GetHeaders(uri)
-
-	//cl = -1
+	hdr, cl, err := GetHeaders(uri)
+	if err != nil {
+		return nil, err
+	}
 
 	if cl == UnknownSize {
 		partCount = 1
@@ -111,14 +125,19 @@ func buildOnlineDownload(partCount int, dstDirs []string, uri string) *Download 
 	basePath := buildFileName(uri, hdr)
 
 	fios, err := buildFileIOs(partCount, basePath, dstDirs)
-	doHandle(err)
+	if err != nil {
+		return nil, err
+	}
 
 	srcs := make([]DataCaster, partCount)
 	for i := range partCount {
 
 		ct := buildClient()
-		req := buildReq(http.MethodGet, uri)
-		srcs[i] = buildNetConn(ct, req)
+		req, err := buildReq(http.MethodGet, uri)
+		if err != nil {
+			return nil, err
+		}
+		srcs[i] = buildWebIO(ct, req)
 
 	}
 
@@ -132,20 +151,25 @@ func buildOnlineDownload(partCount int, dstDirs []string, uri string) *Download 
 		Status:   Starting,
 	}
 
-	return d
+	return d, nil
 }
 
-func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) *Download {
+func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) (*Download, error) {
 
 	basePath := buildFileName(srcFilePath, nil)
 
 	fios, err := buildFileIOs(partCount, basePath, dstDirs)
-	doHandle(err)
+	if err != nil {
+		return nil, err
+	}
 
 	srcs := make([]DataCaster, partCount)
 	for i := range partCount {
 
-		fio, _ := buildFileIO(srcFilePath, ".", os.O_RDONLY)
+		fio, err := buildFileIO(srcFilePath, ".", os.O_RDONLY)
+		if err != nil {
+			return nil, err
+		}
 		srcs[i] = fio
 
 	}
@@ -161,6 +185,6 @@ func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) *Do
 		Status:   Starting,
 	}
 
-	return d
+	return d, nil
 
 }
