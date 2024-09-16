@@ -1,6 +1,8 @@
 package main
 
-import ()
+import (
+	"log"
+)
 
 func main() {
 
@@ -10,7 +12,10 @@ func main() {
 	dstDirs := []string{"dir1/", "dir2/"}
 
 	d, err := buildDownload(FileNumParts, dstDirs, URI)
-	doHandle(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 	d.Start()
+
 
 }

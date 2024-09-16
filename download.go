@@ -37,17 +37,24 @@ const (
 	Online
 )
 
-func (d *Download) Start() {
+func (d *Download) Start() error {
+	
 
-	filePartCount := len(d.Files)
+	partCount := len(d.Files)
 
-	d.Files.setByteRange(d.DataSize)
-	d.Files.setInitState()
+	if err := d.Files.setByteRange(d.DataSize); err != nil {
+		return err
+	}
+
+	if err := d.Files.setInitState(); err != nil { 
+		return err
+	}
+
 	d.Status = Running
 
 	d.WG.Add(1)
 	go ShowProgress(d)
-	for i := range filePartCount {
+	for i := range partCount {
 
 		f := d.Files[i]
 		src := d.Sources[i]
@@ -68,31 +75,26 @@ func (d *Download) Start() {
 	d.WG.Wait()
 	d.Files.Close()
 	d.Status = Stopped
+	return nil
 }
 
-func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) error {
+func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	if f.State == Unknown {
-		if err := f.Truncate(0); err != nil {
-			return err
-		}
+		err := f.Truncate(0)
+		FetchErrHandle(err)	
 	}
 
 	f.Seek(0, io.SeekEnd)
 	r, err := dc.DataCast(f.Scope)
-	if err != nil {
-		return err
-	}
+	FetchErrHandle(err)
 
 	_, err = io.Copy(f, r)
-	if err != nil {
-		return err
-	}
+	FetchErrHandle(err)
 
 	f.ClosingSIG <- true
 	r.Close()
-	return nil
 
 }
 
@@ -175,12 +177,16 @@ func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) (*D
 	}
 
 	srcf := srcs[0].(*FileIO)
+	dataSize, err := srcf.Size()
+	if err != nil {
+		return nil, err
+	}
 
 	d := &Download{
 		Files:    fios,
 		Sources:  srcs,
 		WG:       &sync.WaitGroup{},
-		DataSize: srcf.getSize(),
+		DataSize: dataSize,
 		Type:     Local,
 		Status:   Starting,
 	}
