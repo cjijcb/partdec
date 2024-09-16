@@ -12,7 +12,7 @@ func ShowProgress(d *Download) {
 	//lineCount := len(fs)
 	//clearLine := fmt.Sprintf("%c[%dA%c[2K", ESC, 1, ESC)
 
-	for d.Status == Running {
+	for d.Status == Pending || d.Status == Running {
 		for _, f := range d.Files {
 			size, _ := f.Size()
 			sb := f.Scope.Start

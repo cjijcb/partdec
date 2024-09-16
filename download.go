@@ -17,6 +17,14 @@ type (
 	DLStatus uint8
 	DLType   uint8
 
+	DLOptions struct {
+		URI       string
+		BasePath  string
+		DstDirs   []string
+		PartCount int
+		UI        func(*Download)
+	}
+
 	Download struct {
 		Files    FileIOs
 		Sources  []DataCaster
@@ -25,11 +33,12 @@ type (
 		DataSize int
 		Type     DLType
 		Status   DLStatus
+		UI       func(*Download)
 	}
 )
 
 const (
-	Starting DLStatus = iota
+	Pending DLStatus = iota
 	Running
 	Stopping
 	Stopped
@@ -38,7 +47,11 @@ const (
 )
 
 func (d *Download) Start() error {
-	
+
+	if d.UI != nil {
+		d.WG.Add(1)
+		go d.UI(d)
+	}
 
 	partCount := len(d.Files)
 
@@ -46,14 +59,12 @@ func (d *Download) Start() error {
 		return err
 	}
 
-	if err := d.Files.setInitState(); err != nil { 
+	if err := d.Files.setInitState(); err != nil {
 		return err
 	}
 
 	d.Status = Running
 
-	d.WG.Add(1)
-	go ShowProgress(d)
 	for i := range partCount {
 
 		f := d.Files[i]
@@ -83,7 +94,7 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 
 	if f.State == Unknown {
 		err := f.Truncate(0)
-		FetchErrHandle(err)	
+		FetchErrHandle(err)
 	}
 
 	f.Seek(0, io.SeekEnd)
@@ -98,22 +109,27 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 
 }
 
-func buildDownload(partCount int, dstDirs []string, uri string) (*Download, error) {
+func buildDownload(opt DLOptions) (*Download, error) {
 
-	if ok, _ := isFile(uri); ok {
-		d, err := buildLocalDownload(partCount, dstDirs, uri)
+	if ok, _ := isFile(opt.URI); ok {
+		d, err := buildLocalDownload(opt)
 		return d, err
 	}
 
-	if ok, _ := isURL(uri); ok {
-		d, err := buildOnlineDownload(partCount, dstDirs, uri)
+	if ok, _ := isURL(opt.URI); ok {
+		d, err := buildOnlineDownload(opt)
 		return d, err
 	}
 
 	return nil, errors.New("invalid file or url")
 }
 
-func buildOnlineDownload(partCount int, dstDirs []string, uri string) (*Download, error) {
+func buildOnlineDownload(opt DLOptions) (*Download, error) {
+
+	uri := opt.URI
+	basePath := opt.BasePath
+	dstDirs := opt.DstDirs
+	partCount := opt.PartCount
 
 	hdr, cl, err := GetHeaders(uri)
 	if err != nil {
@@ -124,7 +140,9 @@ func buildOnlineDownload(partCount int, dstDirs []string, uri string) (*Download
 		partCount = 1
 	}
 
-	basePath := buildFileName(uri, hdr)
+	if basePath == "" {
+		basePath = buildFileName(uri, hdr)
+	}
 
 	fios, err := buildFileIOs(partCount, basePath, dstDirs)
 	if err != nil {
@@ -150,15 +168,23 @@ func buildOnlineDownload(partCount int, dstDirs []string, uri string) (*Download
 		URI:      uri,
 		DataSize: int(cl),
 		Type:     Online,
-		Status:   Starting,
+		Status:   Pending,
+		UI:       opt.UI,
 	}
 
 	return d, nil
 }
 
-func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) (*Download, error) {
+func buildLocalDownload(opt DLOptions) (*Download, error) {
 
-	basePath := buildFileName(srcFilePath, nil)
+	uri := opt.URI
+	basePath := opt.BasePath
+	dstDirs := opt.DstDirs
+	partCount := opt.PartCount
+
+	if basePath == "" {
+		basePath = buildFileName(uri, nil)
+	}
 
 	fios, err := buildFileIOs(partCount, basePath, dstDirs)
 	if err != nil {
@@ -168,7 +194,7 @@ func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) (*D
 	srcs := make([]DataCaster, partCount)
 	for i := range partCount {
 
-		fio, err := buildFileIO(srcFilePath, ".", os.O_RDONLY)
+		fio, err := buildFileIO(uri, ".", os.O_RDONLY)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +214,8 @@ func buildLocalDownload(partCount int, dstDirs []string, srcFilePath string) (*D
 		WG:       &sync.WaitGroup{},
 		DataSize: dataSize,
 		Type:     Local,
-		Status:   Starting,
+		Status:   Pending,
+		UI:       opt.UI,
 	}
 
 	return d, nil
