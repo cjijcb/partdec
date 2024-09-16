@@ -211,7 +211,7 @@ func (fs FileIOs) setByteRange(byteCount int) error {
 
 		f.Scope.Offset = size
 	}
-	
+
 	return nil
 }
 
