@@ -19,7 +19,7 @@ func main() {
 		UI:        ShowProgress,
 	}
 
-	d, err := buildDownload(opt)
+	d, err := NewDownload(opt)
 	if err != nil {
 		log.Fatal(err)
 	}
