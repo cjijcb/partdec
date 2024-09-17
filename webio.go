@@ -14,7 +14,7 @@ type (
 	}
 )
 
-func buildWebIO(ct *http.Client, req *http.Request) *WebIO {
+func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
 	wbio := &WebIO{
 		Client:  ct,
 		Request: req,
@@ -23,7 +23,7 @@ func buildWebIO(ct *http.Client, req *http.Request) *WebIO {
 	return wbio
 }
 
-func buildReq(method string, rawURL string) (*http.Request, error) {
+func NewReq(method string, rawURL string) (*http.Request, error) {
 	req, err := http.NewRequest(method, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func buildReq(method string, rawURL string) (*http.Request, error) {
 	return req, nil
 }
 
-func buildClient() *http.Client {
+func NewClient() *http.Client {
 	tr := &http.Transport{
 		MaxIdleConns: 0,
 	}
@@ -46,7 +46,7 @@ func buildClient() *http.Client {
 
 func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
-	wbio.Request.Header.Set("Range", buildRangeHeader(br))
+	wbio.Request.Header.Set("Range", BuildRangeHeader(br))
 
 	resp, err := wbio.Client.Do(wbio.Request)
 	if err != nil {
@@ -60,7 +60,7 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func buildRangeHeader(br ByteRange) string {
+func BuildRangeHeader(br ByteRange) string {
 
 	if br.Start == UnknownSize || br.End == UnknownSize {
 		return "none"

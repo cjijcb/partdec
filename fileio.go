@@ -42,7 +42,7 @@ const (
 	UnknownSize = -1
 )
 
-func buildFileName(uri string, hdr http.Header) string {
+func NewFileName(uri string, hdr http.Header) string {
 
 	if hdr == nil {
 		fileName := path.Base(uri)
@@ -61,7 +61,7 @@ func buildFileName(uri string, hdr http.Header) string {
 
 }
 
-func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
+func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
 
 	if dstDirs == nil {
 		dstDirs = []string{"."}
@@ -71,6 +71,7 @@ func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 	dirCount := len(dstDirs)
 	freqDistrib := partCount / dirCount
 	xtraDistrib := partCount % dirCount
+	addIndex := NewIndexer(partCount)
 
 	var idx, xtra int
 	for _, dir := range dstDirs {
@@ -83,10 +84,7 @@ func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 		for range freqDistrib + xtra {
 
-			suffix := fmt.Sprintf("_%d", idx)
-			basePathSfx := filepath.Clean(basePath + suffix)
-
-			fio, err := buildFileIO(basePathSfx, dir, os.O_WRONLY)
+			fio, err := NewFileIO(addIndex(basePath), dir, os.O_WRONLY)
 			if err != nil {
 				return nil, err
 			}
@@ -102,7 +100,7 @@ func buildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 }
 
-func buildFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
+func NewFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 
 	pathSpr := string(os.PathSeparator)
 
@@ -146,7 +144,7 @@ func (f FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 }
 
-func (fs FileIOs) setInitState() error {
+func (fs FileIOs) SetInitState() error {
 
 	for _, f := range fs {
 		size, err := f.Size()
@@ -176,7 +174,7 @@ func (fs FileIOs) setInitState() error {
 
 }
 
-func (fs FileIOs) setByteRange(byteCount int) error {
+func (fs FileIOs) SetByteRange(byteCount int) error {
 
 	if byteCount == UnknownSize {
 		for _, f := range fs {
@@ -214,6 +212,26 @@ func (fs FileIOs) setByteRange(byteCount int) error {
 
 	return nil
 }
+
+
+func NewIndexer(maxIndex int) func(string) string {
+	if maxIndex <= 1 {
+		return func(name string) string {
+			return name
+		}
+	}
+
+	currentIndex := 0
+
+	return func(name string) string {
+		if currentIndex < maxIndex {
+			currentIndex++
+			return fmt.Sprintf("%s_%d", name, currentIndex)
+		}
+		return name
+	}
+}
+
 
 func (f *FileIO) Size() (int, error) {
 	fi, err := f.Stat()
