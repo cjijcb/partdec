@@ -36,7 +36,7 @@ const (
 	New FileState = iota
 	Resume
 	Completed
-	Corrupted
+	Broken
 	Unknown
 
 	UnknownSize = -1
@@ -144,6 +144,25 @@ func (f FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 }
 
+func (fs FileIOs) RenewState(sm map[FileState]bool) error {
+
+	for _, f := range fs {
+		if sm[f.State] == false {
+			continue
+		}
+
+		if err := f.Truncate(0); err != nil {
+			return err
+		}
+
+		f.State = New
+
+	}
+
+	return nil
+
+}
+
 func (fs FileIOs) SetInitState() error {
 
 	for _, f := range fs {
@@ -157,9 +176,9 @@ func (fs FileIOs) SetInitState() error {
 		if sb == UnknownSize || eb == UnknownSize {
 			f.State = Unknown
 		} else if sb > eb {
-			f.State = Corrupted
+			f.State = Broken
 		} else if size > eb-sb+1 {
-			f.State = Corrupted
+			f.State = Broken
 		} else if size == eb-sb+1 {
 			f.State = Completed
 		} else if size > 0 {
@@ -213,7 +232,6 @@ func (fs FileIOs) SetByteRange(byteCount int) error {
 	return nil
 }
 
-
 func NewIndexer(maxIndex int) func(string) string {
 	if maxIndex <= 1 {
 		return func(name string) string {
@@ -231,7 +249,6 @@ func NewIndexer(maxIndex int) func(string) string {
 		return name
 	}
 }
-
 
 func (f *FileIO) Size() (int, error) {
 	fi, err := f.Stat()
