@@ -16,6 +16,7 @@ func main() {
 		BasePath:  "",
 		DstDirs:   dstDirs,
 		PartCount: partCount,
+		ReDL:      map[FileState]bool{Completed: true, Resume: false, Broken: true},
 		UI:        ShowProgress,
 	}
 

@@ -22,6 +22,7 @@ type (
 		BasePath  string
 		DstDirs   []string
 		PartCount int
+		ReDL      map[FileState]bool
 		UI        func(*Download)
 	}
 
@@ -33,6 +34,7 @@ type (
 		DataSize int
 		Type     DLType
 		Status   DLStatus
+		ReDL     map[FileState]bool
 		UI       func(*Download)
 	}
 )
@@ -55,12 +57,14 @@ func (d *Download) Start() error {
 
 	partCount := len(d.Files)
 
-	if err := d.Files.SetByteRange(d.DataSize); err != nil {
-		return err
-	}
+	if d.ReDL != nil {
+		if err := d.Files.RenewState(d.ReDL); err != nil {
+			return err
+		}
 
-	if err := d.Files.SetInitState(); err != nil {
-		return err
+		if err := d.Files.SetByteRange(d.DataSize); err != nil {
+			return err
+		}
 	}
 
 	d.Status = Running
@@ -70,7 +74,7 @@ func (d *Download) Start() error {
 		f := d.Files[i]
 		src := d.Sources[i]
 
-		if f.State == Completed || f.State == Corrupted {
+		if f.State == Completed || f.State == Broken {
 			f.ClosingSIG <- true
 			continue
 		}
@@ -111,17 +115,30 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 
 func NewDownload(opt DLOptions) (*Download, error) {
 
+	var d *Download
+	var err error
+
 	if ok, _ := isFile(opt.URI); ok {
-		d, err := NewLocalDownload(opt)
-		return d, err
+		d, err = NewLocalDownload(opt)
+	} else if ok, _ := isURL(opt.URI); ok {
+		d, err = NewOnlineDownload(opt)
+	} else {
+		return nil, errors.New("invalid file or url")
 	}
 
-	if ok, _ := isURL(opt.URI); ok {
-		d, err := NewOnlineDownload(opt)
-		return d, err
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, errors.New("invalid file or url")
+	if err = d.Files.SetByteRange(d.DataSize); err != nil {
+		return nil, err
+	}
+
+	if err = d.Files.SetInitState(); err != nil {
+		return nil, err
+	}
+	return d, nil
+
 }
 
 func NewOnlineDownload(opt DLOptions) (*Download, error) {
@@ -169,6 +186,7 @@ func NewOnlineDownload(opt DLOptions) (*Download, error) {
 		DataSize: int(cl),
 		Type:     Online,
 		Status:   Pending,
+		ReDL:     opt.ReDL,
 		UI:       opt.UI,
 	}
 
@@ -182,7 +200,6 @@ func NewLocalDownload(opt DLOptions) (*Download, error) {
 	dstDirs := opt.DstDirs
 	partCount := opt.PartCount
 
-	
 	info, err := os.Stat(uri)
 	if err != nil {
 		return nil, err
@@ -210,7 +227,6 @@ func NewLocalDownload(opt DLOptions) (*Download, error) {
 
 	}
 
-
 	d := &Download{
 		Files:    fios,
 		Sources:  srcs,
@@ -218,6 +234,7 @@ func NewLocalDownload(opt DLOptions) (*Download, error) {
 		DataSize: int(dataSize),
 		Type:     Local,
 		Status:   Pending,
+		ReDL:     opt.ReDL,
 		UI:       opt.UI,
 	}
 
