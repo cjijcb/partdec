@@ -68,12 +68,12 @@ func (d *Download) Start() error {
 	}
 
 	d.Status = Running
-	pullDC := NewDataCasterPuller(d.Sources)
+	pullDataCaster := DataCasterPuller(d.Sources)
 
 	for i := range partCount {
 
 		f := d.Files[i]
-		src := pullDC()
+		src := pullDataCaster()
 
 		if f.State == Completed || f.State == Broken {
 			f.ClosingSIG <- true
@@ -94,7 +94,7 @@ func (d *Download) Start() error {
 	return nil
 }
 
-func NewDataCasterPuller(dcs []DataCaster) func() DataCaster {
+func DataCasterPuller(dcs []DataCaster) func() DataCaster {
 	
 	maxIndex := len(dcs) - 1
 	currentIndex := -1

@@ -73,7 +73,7 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 	dirCount := len(dstDirs)
 	freqDistrib := partCount / dirCount
 	xtraDistrib := partCount % dirCount
-	addIndex := NewIndexer(partCount)
+	addIndex := FileNameIndexer(partCount)
 
 	var idx, xtra int
 	for _, dir := range dstDirs {
@@ -232,7 +232,7 @@ func (fs FileIOs) SetByteRange(byteCount int) error {
 	return nil
 }
 
-func NewIndexer(maxIndex int) func(string) string {
+func FileNameIndexer(maxIndex int) func(string) string {
 	if maxIndex <= 1 {
 		return func(name string) string {
 			return name
