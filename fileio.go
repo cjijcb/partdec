@@ -40,6 +40,8 @@ const (
 	Unknown
 
 	UnknownSize = -1
+	CurrentDir = "."
+	PathSeparator = string(os.PathSeparator)
 )
 
 func NewFileName(uri string, hdr http.Header) string {
@@ -64,7 +66,7 @@ func NewFileName(uri string, hdr http.Header) string {
 func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
 
 	if dstDirs == nil {
-		dstDirs = []string{"."}
+		dstDirs = []string{CurrentDir}
 	}
 
 	fios := make([]*FileIO, partCount)
@@ -102,10 +104,8 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 func NewFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 
-	pathSpr := string(os.PathSeparator)
-
 	basePath = filepath.Clean(basePath)
-	dstDir = filepath.Clean(dstDir) + pathSpr
+	dstDir = filepath.Clean(dstDir) + PathSeparator
 	relvPath := filepath.Clean(dstDir + basePath)
 
 	f, err := os.OpenFile(relvPath, os.O_CREATE|oflag, 0640)
@@ -144,7 +144,7 @@ func (f FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 }
 
-func (fs FileIOs) RenewState(sm map[FileState]bool) error {
+func (fs FileIOs) RenewByState(sm map[FileState]bool) error {
 
 	for _, f := range fs {
 		if sm[f.State] == false {
