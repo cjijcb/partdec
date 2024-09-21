@@ -58,7 +58,7 @@ func (d *Download) Start() error {
 	partCount := len(d.Files)
 
 	if d.ReDL != nil {
-		if err := d.Files.RenewState(d.ReDL); err != nil {
+		if err := d.Files.RenewByState(d.ReDL); err != nil {
 			return err
 		}
 
@@ -68,11 +68,12 @@ func (d *Download) Start() error {
 	}
 
 	d.Status = Running
+	pullDC := NewDataCasterPuller(d.Sources)
 
 	for i := range partCount {
 
 		f := d.Files[i]
-		src := d.Sources[i]
+		src := pullDC()
 
 		if f.State == Completed || f.State == Broken {
 			f.ClosingSIG <- true
@@ -92,6 +93,23 @@ func (d *Download) Start() error {
 	d.Status = Stopped
 	return nil
 }
+
+func NewDataCasterPuller(dcs []DataCaster) func() DataCaster {
+	
+	maxIndex := len(dcs) - 1
+	currentIndex := -1
+
+	return func() DataCaster {
+		if currentIndex < maxIndex {
+			currentIndex++
+			return dcs[currentIndex]
+		}
+		return  dcs[currentIndex]
+	}
+
+}
+
+
 
 func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -216,16 +234,12 @@ func NewLocalDownload(opt DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	srcs := make([]DataCaster, partCount)
-	for i := range partCount {
-
-		fio, err := NewFileIO(uri, ".", os.O_RDONLY)
-		if err != nil {
-			return nil, err
-		}
-		srcs[i] = fio
-
+	fio, err := NewFileIO(uri, CurrentDir, os.O_RDONLY)
+	if err != nil {
+		return nil, err
 	}
+	srcs := make([]DataCaster, 1)
+	srcs[0] = fio
 
 	d := &Download{
 		Files:    fios,
