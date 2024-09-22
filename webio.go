@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type (
@@ -12,6 +13,10 @@ type (
 		Client  *http.Client
 		Request *http.Request
 	}
+)
+
+const (
+	RequestTimeout = 900 * time.Second
 )
 
 func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
@@ -79,7 +84,8 @@ func BuildRangeHeader(br ByteRange) string {
 
 func GetHeaders(rawURL string) (http.Header, int64, error) {
 
-	ct := &http.Client{}
+	ct := &http.Client{Timeout: RequestTimeout}
+
 	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
 
 	if err != nil {
