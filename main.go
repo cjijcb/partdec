@@ -2,9 +2,12 @@ package main
 
 import (
 	"log"
+	"runtime"
 )
 
 func main() {
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	partCount := 3
 	uri := "http://ipv4.download.thinkbroadband.com/5MB.zip"

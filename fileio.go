@@ -39,8 +39,8 @@ const (
 	Broken
 	Unknown
 
-	UnknownSize = -1
-	CurrentDir = "."
+	UnknownSize   = -1
+	CurrentDir    = "."
 	PathSeparator = string(os.PathSeparator)
 )
 

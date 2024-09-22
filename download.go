@@ -2,6 +2,7 @@ package main
 
 import (
 	//"fmt"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -14,8 +15,14 @@ type (
 		DataCast(ByteRange) (io.ReadCloser, error)
 	}
 
-	DLStatus uint8
-	DLType   uint8
+	DLStatus    uint8
+	DLType      uint8
+	FlowControl struct {
+		WG      *sync.WaitGroup
+		Limiter chan struct{}
+		Acquire func(chan<- struct{})
+		Release func(<-chan struct{})
+	}
 
 	DLOptions struct {
 		URI       string
@@ -29,13 +36,19 @@ type (
 	Download struct {
 		Files    FileIOs
 		Sources  []DataCaster
-		WG       *sync.WaitGroup
+		Flow     *FlowControl
 		URI      string
 		DataSize int
 		Type     DLType
 		Status   DLStatus
 		ReDL     map[FileState]bool
 		UI       func(*Download)
+		Cancel   context.CancelFunc
+	}
+
+	ctxReader struct {
+		ctx context.Context
+		r   io.Reader
 	}
 )
 
@@ -46,12 +59,19 @@ const (
 	Stopped
 	Local DLType = iota
 	Online
+
+	MaxFetch = 2
 )
 
 func (d *Download) Start() error {
+	defer d.Files.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	d.Cancel = cancel
 
 	if d.UI != nil {
-		d.WG.Add(1)
+		d.Flow.WG.Add(1)
 		go d.UI(d)
 	}
 
@@ -80,22 +100,22 @@ func (d *Download) Start() error {
 			continue
 		}
 
-		d.WG.Add(1)
-		go Fetch(src, f, d.WG)
+		d.Flow.WG.Add(1)
+		d.Flow.Acquire(d.Flow.Limiter)
+		go Fetch(ctx, src, f, d.Flow)
 
 	}
 
 	d.Files.WaitClosingSIG()
 	d.Status = Stopping
 
-	d.WG.Wait()
-	d.Files.Close()
+	d.Flow.WG.Wait()
 	d.Status = Stopped
 	return nil
 }
 
 func DataCasterPuller(dcs []DataCaster) func() DataCaster {
-	
+
 	maxIndex := len(dcs) - 1
 	currentIndex := -1
 
@@ -104,15 +124,14 @@ func DataCasterPuller(dcs []DataCaster) func() DataCaster {
 			currentIndex++
 			return dcs[currentIndex]
 		}
-		return  dcs[currentIndex]
+		return dcs[currentIndex]
 	}
 
 }
 
-
-
-func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
-	defer wg.Done()
+func Fetch(ctx context.Context, dc DataCaster, f *FileIO, flow *FlowControl) {
+	defer flow.WG.Done()
+	defer flow.Release(flow.Limiter)
 
 	if f.State == Unknown {
 		err := f.Truncate(0)
@@ -123,7 +142,7 @@ func Fetch(dc DataCaster, f *FileIO, wg *sync.WaitGroup) {
 	r, err := dc.DataCast(f.Scope)
 	FetchErrHandle(err)
 
-	_, err = io.Copy(f, r)
+	_, err = f.ReadFrom(newCtxReader(ctx, r))
 	FetchErrHandle(err)
 
 	f.ClosingSIG <- true
@@ -155,6 +174,9 @@ func NewDownload(opt DLOptions) (*Download, error) {
 	if err = d.Files.SetInitState(); err != nil {
 		return nil, err
 	}
+
+	d.Flow = NewFlowControl(MaxFetch)
+
 	return d, nil
 
 }
@@ -196,19 +218,16 @@ func NewOnlineDownload(opt DLOptions) (*Download, error) {
 
 	}
 
-	d := &Download{
+	return &Download{
 		Files:    fios,
 		Sources:  srcs,
-		WG:       &sync.WaitGroup{},
 		URI:      uri,
 		DataSize: int(cl),
 		Type:     Online,
 		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
-	}
-
-	return d, nil
+	}, nil
 }
 
 func NewLocalDownload(opt DLOptions) (*Download, error) {
@@ -241,17 +260,44 @@ func NewLocalDownload(opt DLOptions) (*Download, error) {
 	srcs := make([]DataCaster, 1)
 	srcs[0] = fio
 
-	d := &Download{
+	return &Download{
 		Files:    fios,
 		Sources:  srcs,
-		WG:       &sync.WaitGroup{},
 		DataSize: int(dataSize),
 		Type:     Local,
 		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
+	}, nil
+
+}
+
+func NewFlowControl(limit int) *FlowControl {
+
+	limiter := make(chan struct{}, limit)
+	acq := func(l chan<- struct{}) { l <- struct{}{} }
+	rls := func(l <-chan struct{}) { <-l }
+
+	return &FlowControl{
+		WG:      &sync.WaitGroup{},
+		Limiter: limiter,
+		Acquire: acq,
+		Release: rls,
 	}
+}
 
-	return d, nil
+func (r *ctxReader) Read(p []byte) (int, error) {
+	select {
+	case <-r.ctx.Done():
+		return 0, r.ctx.Err()
+	default:
+		return r.r.Read(p)
+	}
+}
 
+func newCtxReader(ctx context.Context, r io.Reader) *ctxReader {
+	return &ctxReader{
+		ctx: ctx,
+		r:   r,
+	}
 }
