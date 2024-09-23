@@ -35,7 +35,7 @@ func ShowProgress(d *Download) {
 				f.Path.Relative,
 			)
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		//fmt.Printf(strings.Repeat(clearLine, lineCount))
 	}
 	for _, f := range d.Files {

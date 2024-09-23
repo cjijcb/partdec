@@ -19,14 +19,18 @@ func main() {
 		BasePath:  "",
 		DstDirs:   dstDirs,
 		PartCount: partCount,
-		ReDL:      map[FileState]bool{Completed: true, Resume: false, Broken: true},
+		ReDL:      map[FileState]bool{Completed: true, Resume: true, Broken: true},
 		UI:        ShowProgress,
 	}
 
 	d, err := NewDownload(opt)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error From Main:", err)
 	}
-	d.Start()
+
+	err = d.Start()
+	if err != nil {
+		log.Fatal("Error From Main:", err)
+	}
 
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"fmt"
 	"context"
 	"errors"
 	"io"
@@ -17,10 +16,14 @@ type (
 
 	DLStatus    uint8
 	DLType      uint8
+	EndPoint struct {
+		Src  DataCaster
+		Dst *FileIO
+	}
 	FlowControl struct {
 		WG      *sync.WaitGroup
 		Limiter chan struct{}
-		Acquire func(chan<- struct{})
+		Acquire func(chan<- struct{}) <-chan struct{}
 		Release func(<-chan struct{})
 	}
 
@@ -60,50 +63,31 @@ const (
 	Local DLType = iota
 	Online
 
-	MaxFetch = 2
+	MaxFetch = 1
 )
 
 func (d *Download) Start() error {
 	defer d.Files.Close()
+	var fetchErr error
+	var ctx context.Context
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	d.Cancel = cancel
+	ctx, d.Cancel = context.WithCancel(context.Background())
+	defer d.Cancel()
 
 	if d.UI != nil {
 		d.Flow.WG.Add(1)
 		go d.UI(d)
 	}
 
-	partCount := len(d.Files)
-
-	if d.ReDL != nil {
-		if err := d.Files.RenewByState(d.ReDL); err != nil {
-			return err
-		}
-
-		if err := d.Files.SetByteRange(d.DataSize); err != nil {
-			return err
-		}
-	}
-
 	d.Status = Running
-	pullDataCaster := DataCasterPuller(d.Sources)
 
-	for i := range partCount {
+	errCh := make(chan error, len(d.Files))
+	
+	d.Flow.WG.Add(1)
+	go d.Fetch(ctx, errCh)
 
-		f := d.Files[i]
-		src := pullDataCaster()
-
-		if f.State == Completed || f.State == Broken {
-			f.ClosingSIG <- true
-			continue
-		}
-
-		d.Flow.WG.Add(1)
-		d.Flow.Acquire(d.Flow.Limiter)
-		go Fetch(ctx, src, f, d.Flow)
-
+	if fetchErr = CatchErr(errCh); fetchErr != nil {
+		d.Cancel()
 	}
 
 	d.Files.WaitClosingSIG()
@@ -111,42 +95,62 @@ func (d *Download) Start() error {
 
 	d.Flow.WG.Wait()
 	d.Status = Stopped
-	return nil
+	return fetchErr
 }
 
-func DataCasterPuller(dcs []DataCaster) func() DataCaster {
 
-	maxIndex := len(dcs) - 1
-	currentIndex := -1
+func (d *Download) Fetch(ctx context.Context, errCh chan error) {
+    defer d.Flow.WG.Done()
+    pullDataCaster := DataCasterPuller(d.Sources)
 
-	return func() DataCaster {
-		if currentIndex < maxIndex {
-			currentIndex++
-			return dcs[currentIndex]
-		}
-		return dcs[currentIndex]
-	}
+    for _, f := range d.Files {
+        src := pullDataCaster()
 
+        if f.State == Completed || f.State == Broken {
+            f.ClosingSIG <- true
+            continue
+        }
+
+        <-d.Flow.Acquire(d.Flow.Limiter)
+        d.Flow.WG.Add(1)
+        go fetch(ctx, &EndPoint{src, f}, d.Flow, errCh)
+    }
 }
 
-func Fetch(ctx context.Context, dc DataCaster, f *FileIO, flow *FlowControl) {
-	defer flow.WG.Done()
-	defer flow.Release(flow.Limiter)
-
+func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- error) {
+	defer fc.WG.Done()
+	defer fc.Release(fc.Limiter)
+	
+	dc := ep.Src
+	f := ep.Dst
+	defer func() { f.ClosingSIG <- true }()
+	
 	if f.State == Unknown {
 		err := f.Truncate(0)
-		FetchErrHandle(err)
+		if err != nil {
+			errCh <- err
+			return
+		}
 	}
 
 	f.Seek(0, io.SeekEnd)
 	r, err := dc.DataCast(f.Scope)
-	FetchErrHandle(err)
+	defer r.Close()
+
+	if err != nil {
+		errCh <- err
+		return
+	}
+
 
 	_, err = f.ReadFrom(newCtxReader(ctx, r))
-	FetchErrHandle(err)
+	if err != nil {
+		errCh <- err
+		return
+	}
+	errCh <- errors.New("test error")
 
-	f.ClosingSIG <- true
-	r.Close()
+	return
 
 }
 
@@ -173,6 +177,16 @@ func NewDownload(opt DLOptions) (*Download, error) {
 
 	if err = d.Files.SetInitState(); err != nil {
 		return nil, err
+	}
+
+	if d.ReDL != nil {
+		if err := d.Files.RenewByState(d.ReDL); err != nil {
+			return nil, err
+		}
+
+		if err := d.Files.SetByteRange(d.DataSize); err != nil {
+			return nil, err
+		}
 	}
 
 	d.Flow = NewFlowControl(MaxFetch)
@@ -275,7 +289,12 @@ func NewLocalDownload(opt DLOptions) (*Download, error) {
 func NewFlowControl(limit int) *FlowControl {
 
 	limiter := make(chan struct{}, limit)
-	acq := func(l chan<- struct{}) { l <- struct{}{} }
+	acq := func(l chan<- struct{}) <-chan struct{} {
+		succeed := make(chan struct{})
+		l <- struct{}{}
+		close(succeed)
+		return succeed
+	}
 	rls := func(l <-chan struct{}) { <-l }
 
 	return &FlowControl{
@@ -284,6 +303,21 @@ func NewFlowControl(limit int) *FlowControl {
 		Acquire: acq,
 		Release: rls,
 	}
+}
+
+func DataCasterPuller(dcs []DataCaster) func() DataCaster {
+
+	maxIndex := len(dcs) - 1
+	currentIndex := -1
+
+	return func() DataCaster {
+		if currentIndex < maxIndex {
+			currentIndex++
+			return dcs[currentIndex]
+		}
+		return dcs[currentIndex]
+	}
+
 }
 
 func (r *ctxReader) Read(p []byte) (int, error) {
