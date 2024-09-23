@@ -14,10 +14,10 @@ type (
 		DataCast(ByteRange) (io.ReadCloser, error)
 	}
 
-	DLStatus    uint8
-	DLType      uint8
+	DLStatus uint8
+	DLType   uint8
 	EndPoint struct {
-		Src  DataCaster
+		Src DataCaster
 		Dst *FileIO
 	}
 	FlowControl struct {
@@ -82,7 +82,7 @@ func (d *Download) Start() error {
 	d.Status = Running
 
 	errCh := make(chan error, len(d.Files))
-	
+
 	d.Flow.WG.Add(1)
 	go d.Fetch(ctx, errCh)
 
@@ -98,33 +98,32 @@ func (d *Download) Start() error {
 	return fetchErr
 }
 
-
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
-    defer d.Flow.WG.Done()
-    pullDataCaster := DataCasterPuller(d.Sources)
+	defer d.Flow.WG.Done()
+	pullDataCaster := DataCasterPuller(d.Sources)
 
-    for _, f := range d.Files {
-        src := pullDataCaster()
+	for _, f := range d.Files {
+		src := pullDataCaster()
 
-        if f.State == Completed || f.State == Broken {
-            f.ClosingSIG <- true
-            continue
-        }
+		if f.State == Completed || f.State == Broken {
+			f.ClosingSIG <- true
+			continue
+		}
 
-        <-d.Flow.Acquire(d.Flow.Limiter)
-        d.Flow.WG.Add(1)
-        go fetch(ctx, &EndPoint{src, f}, d.Flow, errCh)
-    }
+		<-d.Flow.Acquire(d.Flow.Limiter)
+		d.Flow.WG.Add(1)
+		go fetch(ctx, &EndPoint{src, f}, d.Flow, errCh)
+	}
 }
 
 func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- error) {
 	defer fc.WG.Done()
 	defer fc.Release(fc.Limiter)
-	
+
 	dc := ep.Src
 	f := ep.Dst
 	defer func() { f.ClosingSIG <- true }()
-	
+
 	if f.State == Unknown {
 		err := f.Truncate(0)
 		if err != nil {
@@ -141,7 +140,6 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 		errCh <- err
 		return
 	}
-
 
 	_, err = f.ReadFrom(newCtxReader(ctx, r))
 	if err != nil {

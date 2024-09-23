@@ -10,8 +10,6 @@ func FetchErrHandle(err error) {
 	}
 }
 
-
-
 func CatchErr(errCh chan error) error {
 
 	for err := range errCh {
