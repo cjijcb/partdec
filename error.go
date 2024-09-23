@@ -9,3 +9,17 @@ func FetchErrHandle(err error) {
 		log.Fatal(err)
 	}
 }
+
+
+
+func CatchErr(errCh chan error) error {
+
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
