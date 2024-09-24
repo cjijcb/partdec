@@ -193,7 +193,7 @@ func (fs FileIOs) SetInitState() error {
 
 }
 
-func (fs FileIOs) SetByteRange(byteCount int) error {
+func (fs FileIOs) SetByteRange(byteCount int, partSize int) error {
 
 	if byteCount == UnknownSize {
 		for _, f := range fs {
@@ -203,19 +203,77 @@ func (fs FileIOs) SetByteRange(byteCount int) error {
 		return nil
 	}
 
-	partCount := len(fs)
-	partSize := byteCount / partCount
+	if partSize > 0 {
+		if err := fs.setByteRangeByPartSize(byteCount, partSize); err != nil {
+			return err
+		}
+	} else {
+		if err := fs.setByteRangeByPartCount(byteCount); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (fs FileIOs) setByteRangeByPartCount(byteCount int) error {
+
 	var rangeStart, rangeEnd int
 
-	for i, ii := 0, 0; i < partCount; i, ii = i+1, ii+partSize {
+	partCount := len(fs)
+	basePartSize := byteCount / partCount
+	remainder := byteCount % partCount
+
+	for i, offset := 0, 0; i < partCount; i, offset = i+1, offset+basePartSize {
+
+		extraByte := 0
+		if remainder > 0 {
+			extraByte = 1
+			remainder--
+		}
+
+		rangeStart = offset
+		rangeEnd = (rangeStart - 1) + basePartSize + extraByte
+		offset = offset + extraByte
+
+		f := fs[i]
+
+		f.Scope.Start = rangeStart
+		f.Scope.End = rangeEnd
+		size, err := f.Size()
+
+		if err != nil {
+			return err
+		}
+
+		f.Scope.Offset = size
+
+	}
+
+	return nil
+}
+
+func (fs FileIOs) setByteRangeByPartSize(byteCount int, partSize int) error {
+
+	var rangeStart, rangeEnd int
+
+	partCount := byteCount / partSize
+	remainder := byteCount % partSize
+
+	if remainder > 0 {
+		partCount++
+	}
+
+	for i, offset := 0, 0; i < partCount; i, offset = i+1, offset+partSize {
 
 		if i+1 == partCount {
-			rangeStart = ii
+			rangeStart = offset
 			rangeEnd = byteCount - 1
 		} else {
-			rangeStart = ii
+			rangeStart = offset
 			rangeEnd = (rangeStart - 1) + partSize
 		}
+
 		f := fs[i]
 
 		f.Scope.Start = rangeStart

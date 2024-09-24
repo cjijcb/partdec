@@ -10,11 +10,15 @@ func FetchErrHandle(err error) {
 	}
 }
 
-func CatchErr(errCh chan error) error {
+func CatchErr(errCh chan error, maxErrCount int) error {
 
+	errCount := 0
 	for err := range errCh {
 		if err != nil {
 			return err
+		}
+		if errCount++; errCount == maxErrCount {
+			break
 		}
 	}
 

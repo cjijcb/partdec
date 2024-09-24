@@ -32,6 +32,7 @@ type (
 		BasePath  string
 		DstDirs   []string
 		PartCount int
+		PartSize  int
 		ReDL      map[FileState]bool
 		UI        func(*Download)
 	}
@@ -63,7 +64,7 @@ const (
 	Local DLType = iota
 	Online
 
-	MaxFetch = 1
+	MaxFetch = 2
 )
 
 func (d *Download) Start() error {
@@ -80,13 +81,14 @@ func (d *Download) Start() error {
 	}
 
 	d.Status = Running
+	partCount := len(d.Files)
 
-	errCh := make(chan error, len(d.Files))
+	errCh := make(chan error, partCount)
 
 	d.Flow.WG.Add(1)
 	go d.Fetch(ctx, errCh)
 
-	if fetchErr = CatchErr(errCh); fetchErr != nil {
+	if fetchErr = CatchErr(errCh, partCount); fetchErr != nil {
 		d.Cancel()
 	}
 
@@ -146,9 +148,8 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 		errCh <- err
 		return
 	}
-	errCh <- errors.New("test error")
 
-	return
+	errCh <- nil
 
 }
 
@@ -158,9 +159,9 @@ func NewDownload(opt DLOptions) (*Download, error) {
 	var err error
 
 	if ok, _ := isFile(opt.URI); ok {
-		d, err = NewLocalDownload(opt)
+		d, err = NewLocalDownload(&opt)
 	} else if ok, _ := isURL(opt.URI); ok {
-		d, err = NewOnlineDownload(opt)
+		d, err = NewOnlineDownload(&opt)
 	} else {
 		return nil, errors.New("invalid file or url")
 	}
@@ -169,7 +170,7 @@ func NewDownload(opt DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	if err = d.Files.SetByteRange(d.DataSize); err != nil {
+	if err := d.Files.SetByteRange(d.DataSize, opt.PartSize); err != nil {
 		return nil, err
 	}
 
@@ -182,7 +183,7 @@ func NewDownload(opt DLOptions) (*Download, error) {
 			return nil, err
 		}
 
-		if err := d.Files.SetByteRange(d.DataSize); err != nil {
+		if err := d.Files.SetByteRange(d.DataSize, opt.PartSize); err != nil {
 			return nil, err
 		}
 	}
@@ -193,36 +194,29 @@ func NewDownload(opt DLOptions) (*Download, error) {
 
 }
 
-func NewOnlineDownload(opt DLOptions) (*Download, error) {
+func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
-	uri := opt.URI
-	basePath := opt.BasePath
-	dstDirs := opt.DstDirs
-	partCount := opt.PartCount
-
-	hdr, cl, err := GetHeaders(uri)
+	hdr, cl, err := GetHeaders(opt.URI)
 	if err != nil {
 		return nil, err
 	}
 
-	if cl == UnknownSize {
-		partCount = 1
+	opt.AlignPartCountSize(int(cl))
+
+	if opt.BasePath == "" {
+		opt.BasePath = NewFileName(opt.URI, hdr)
 	}
 
-	if basePath == "" {
-		basePath = NewFileName(uri, hdr)
-	}
-
-	fios, err := BuildFileIOs(partCount, basePath, dstDirs)
+	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
 	if err != nil {
 		return nil, err
 	}
 
-	srcs := make([]DataCaster, partCount)
-	for i := range partCount {
+	srcs := make([]DataCaster, opt.PartCount)
+	for i := range opt.PartCount {
 
 		ct := NewClient()
-		req, err := NewReq(http.MethodGet, uri)
+		req, err := NewReq(http.MethodGet, opt.URI)
 		if err != nil {
 			return nil, err
 		}
@@ -233,7 +227,7 @@ func NewOnlineDownload(opt DLOptions) (*Download, error) {
 	return &Download{
 		Files:    fios,
 		Sources:  srcs,
-		URI:      uri,
+		URI:      opt.URI,
 		DataSize: int(cl),
 		Type:     Online,
 		Status:   Pending,
@@ -242,30 +236,27 @@ func NewOnlineDownload(opt DLOptions) (*Download, error) {
 	}, nil
 }
 
-func NewLocalDownload(opt DLOptions) (*Download, error) {
+func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
-	uri := opt.URI
-	basePath := opt.BasePath
-	dstDirs := opt.DstDirs
-	partCount := opt.PartCount
-
-	info, err := os.Stat(uri)
+	info, err := os.Stat(opt.URI)
 	if err != nil {
 		return nil, err
 	}
 
 	dataSize := info.Size()
 
-	if basePath == "" {
-		basePath = NewFileName(uri, nil)
+	opt.AlignPartCountSize(int(dataSize))
+
+	if opt.BasePath == "" {
+		opt.BasePath = NewFileName(opt.URI, nil)
 	}
 
-	fios, err := BuildFileIOs(partCount, basePath, dstDirs)
+	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
 	if err != nil {
 		return nil, err
 	}
 
-	fio, err := NewFileIO(uri, CurrentDir, os.O_RDONLY)
+	fio, err := NewFileIO(opt.URI, CurrentDir, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
@@ -275,12 +266,38 @@ func NewLocalDownload(opt DLOptions) (*Download, error) {
 	return &Download{
 		Files:    fios,
 		Sources:  srcs,
+		URI:      opt.URI,
 		DataSize: int(dataSize),
 		Type:     Local,
 		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
 	}, nil
+
+}
+
+func (opt *DLOptions) AlignPartCountSize(dataSize int) {
+
+	if dataSize == UnknownSize {
+		opt.PartCount = 1
+		opt.PartSize = UnknownSize
+		return
+	}
+
+	if opt.PartCount < 0 {
+		opt.PartCount = 1
+	}
+
+	if opt.PartSize < 1 {
+		opt.PartSize = UnknownSize
+	}
+
+	if opt.PartSize > 1 {
+		opt.PartCount = dataSize / opt.PartSize
+		if dataSize%opt.PartSize != 0 {
+			opt.PartCount++
+		}
+	}
 
 }
 
