@@ -193,9 +193,9 @@ func (fs FileIOs) SetInitState() error {
 
 }
 
-func (fs FileIOs) SetByteRange(byteCount int, partSize int) error {
+func (fs FileIOs) SetByteRange(dataSize int, partSize int) error {
 
-	if byteCount == UnknownSize {
+	if dataSize == UnknownSize {
 		for _, f := range fs {
 			f.Scope.Start = UnknownSize
 			f.Scope.End = UnknownSize
@@ -204,11 +204,11 @@ func (fs FileIOs) SetByteRange(byteCount int, partSize int) error {
 	}
 
 	if partSize > 0 {
-		if err := fs.setByteRangeByPartSize(byteCount, partSize); err != nil {
+		if err := fs.setByteRangeByPartSize(dataSize, partSize); err != nil {
 			return err
 		}
 	} else {
-		if err := fs.setByteRangeByPartCount(byteCount); err != nil {
+		if err := fs.setByteRangeByPartCount(dataSize); err != nil {
 			return err
 		}
 	}
@@ -216,13 +216,13 @@ func (fs FileIOs) SetByteRange(byteCount int, partSize int) error {
 	return nil
 }
 
-func (fs FileIOs) setByteRangeByPartCount(byteCount int) error {
+func (fs FileIOs) setByteRangeByPartCount(dataSize int) error {
 
 	var rangeStart, rangeEnd int
 
 	partCount := len(fs)
-	basePartSize := byteCount / partCount
-	remainder := byteCount % partCount
+	basePartSize := dataSize / partCount
+	remainder := dataSize % partCount
 
 	for i, offset := 0, 0; i < partCount; i, offset = i+1, offset+basePartSize {
 
@@ -253,12 +253,12 @@ func (fs FileIOs) setByteRangeByPartCount(byteCount int) error {
 	return nil
 }
 
-func (fs FileIOs) setByteRangeByPartSize(byteCount int, partSize int) error {
+func (fs FileIOs) setByteRangeByPartSize(dataSize int, partSize int) error {
 
 	var rangeStart, rangeEnd int
 
-	partCount := byteCount / partSize
-	remainder := byteCount % partSize
+	partCount := dataSize / partSize
+	remainder := dataSize % partSize
 
 	if remainder > 0 {
 		partCount++
@@ -268,7 +268,7 @@ func (fs FileIOs) setByteRangeByPartSize(byteCount int, partSize int) error {
 
 		if i+1 == partCount {
 			rangeStart = offset
-			rangeEnd = byteCount - 1
+			rangeEnd = dataSize - 1
 		} else {
 			rangeStart = offset
 			rangeEnd = (rangeStart - 1) + partSize
