@@ -71,20 +71,20 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 	fios := make([]*FileIO, partCount)
 	dirCount := len(dstDirs)
-	freqDistrib := partCount / dirCount
-	xtraDistrib := partCount % dirCount
+	fioPerDirCount := partCount / dirCount
+	fioExtraCount := partCount % dirCount
 	addIndex := FileNameIndexer(partCount)
 
-	var idx, xtra int
+	var idx uint
 	for _, dir := range dstDirs {
 
-		xtra = 0
-		if xtraDistrib > 0 {
-			xtra = 1
-			xtraDistrib--
+		fioExtra := 0
+		if fioExtraCount > 0 {
+			fioExtra = 1
+			fioExtraCount--
 		}
 
-		for range freqDistrib + xtra {
+		for range fioPerDirCount + fioExtra {
 
 			fio, err := NewFileIO(addIndex(basePath), dir, os.O_WRONLY)
 			if err != nil {
@@ -92,7 +92,6 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 			}
 
 			fios[idx] = fio
-
 			idx++
 		}
 
