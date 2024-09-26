@@ -20,10 +20,11 @@ type (
 
 	FileIO struct {
 		*os.File
-		Scope ByteRange
-		State FileState
-		Path  FilePath
-		Warn  error
+		Scope  ByteRange
+		State  FileState
+		Path   FilePath
+		Warn   error
+		isOpen bool
 	}
 
 	FileIOs []*FileIO
@@ -98,7 +99,8 @@ func NewFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 			DstDir:   dstDir,
 			Relative: relvPath,
 		},
-		Warn: nil,
+		Warn:   nil,
+		isOpen: true,
 	}
 
 	return fio, err
@@ -270,9 +272,11 @@ func (fs FileIOs) setByteRangeByPartSize(dataSize int, partSize int) error {
 func newFileNameFromPath(path string) string {
 
 	return filepath.Base(path)
+
 }
 
 func FileNameIndexer(maxIndex int) func(string) string {
+
 	if maxIndex <= 1 {
 		return func(name string) string {
 			return name
@@ -288,6 +292,7 @@ func FileNameIndexer(maxIndex int) func(string) string {
 		}
 		return name
 	}
+
 }
 
 func (f *FileIO) Size() (int, error) {
@@ -300,16 +305,27 @@ func (f *FileIO) Size() (int, error) {
 
 }
 
-func (fs FileIOs) Warning() error {
-	var err error
-	for _, f := range fs {
-		err = errors.Join(err, f.Warn)
+func (f *FileIO) Close() error {
+
+	if err := f.File.Close(); err != nil {
+		return err
 	}
-	return err
+
+	f.isOpen = false
+	return nil
+
 }
 
-func (fs FileIOs) Close() {
+func (fs FileIOs) Close() error {
+
+	var err error
 	for _, f := range fs {
-		f.Warn = f.Close()
+		if f.isOpen {
+			f.Warn = f.Close()
+		}
+		err = errors.Join(err, f.Warn)
 	}
+
+	return err
+
 }

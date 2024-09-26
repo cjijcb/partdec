@@ -68,6 +68,10 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
+func (wbio *WebIO) Close() error {
+	return nil
+}
+
 func BuildRangeHeader(br ByteRange) string {
 
 	if br.Start == UnknownSize || br.End == UnknownSize {

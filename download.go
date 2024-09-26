@@ -12,6 +12,7 @@ import (
 type (
 	DataCaster interface {
 		DataCast(ByteRange) (io.ReadCloser, error)
+		Close() error
 	}
 
 	DLStatus uint8
@@ -69,6 +70,8 @@ const (
 
 func (d *Download) Start() error {
 	defer d.Files.Close()
+	defer Close(d.Sources)
+
 	var fetchErr error
 	var ctx context.Context
 
@@ -95,7 +98,7 @@ func (d *Download) Start() error {
 
 	d.Flow.WG.Wait()
 	d.Status = Stopped
-	return errors.Join(fetchErr, d.Files.Warning())
+	return errors.Join(fetchErr, d.Files.Close(), Close(d.Sources))
 }
 
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
@@ -350,6 +353,15 @@ func DataCasterPuller(dcs []DataCaster) func() DataCaster {
 		return dcs[currentIndex]
 	}
 
+}
+
+func Close(dcs []DataCaster) error {
+
+	var err error
+	for _, dc := range dcs {
+		err = errors.Join(err, dc.Close())
+	}
+	return err
 }
 
 func (r *ctxReader) Read(p []byte) (int, error) {
