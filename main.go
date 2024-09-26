@@ -21,7 +21,7 @@ func main() {
 		DstDirs:   dstDirs,
 		PartCount: partCount,
 		PartSize:  partSize,
-		ReDL:      map[FileState]bool{Completed: true, Resume: false, Broken: true},
+		ReDL:      map[FileState]bool{Completed: false, Resume: false, Broken: true},
 		UI:        ShowProgress,
 	}
 

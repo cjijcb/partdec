@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -23,10 +24,10 @@ type (
 
 	FileIO struct {
 		*os.File
-		Scope      ByteRange
-		State      FileState
-		Path       FilePath
-		ClosingSIG chan bool
+		Scope ByteRange
+		State FileState
+		Path  FilePath
+		Err   error
 	}
 
 	FileIOs []*FileIO
@@ -120,7 +121,7 @@ func NewFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 			DstDir:   dstDir,
 			Relative: relvPath,
 		},
-		ClosingSIG: make(chan bool, 1),
+		Err: nil,
 	}
 
 	return fio, err
@@ -308,22 +309,25 @@ func FileNameIndexer(maxIndex int) func(string) string {
 }
 
 func (f *FileIO) Size() (int, error) {
-	fi, err := f.Stat()
+
+	info, err := os.Stat(f.Path.Relative)
 	if err != nil {
 		return UnknownSize, nil
 	}
-	return int(fi.Size()), nil
+	return int(info.Size()), nil
+
 }
 
-func (fs FileIOs) WaitClosingSIG() {
+func (fs FileIOs) Error() error {
+	var err error
 	for _, f := range fs {
-		<-f.ClosingSIG
+		err = errors.Join(err, f.Err)
 	}
+	return err
 }
 
 func (fs FileIOs) Close() {
 	for _, f := range fs {
 		f.Close()
-		close(f.ClosingSIG)
 	}
 }
