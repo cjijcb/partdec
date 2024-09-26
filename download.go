@@ -275,6 +275,24 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
 }
 
+func NewFileName(uri string, hdr http.Header) string {
+
+	if fileName := newFileNameFromHeader(hdr); fileName != "" {
+		return fileName
+	}
+
+	if fileName := newFileNameFromPath(uri); fileName != "" {
+		return fileName
+	}
+
+	if fileName := newFileNameFromURL(uri); fileName != "" {
+		return fileName
+	}
+
+	return "unknown.partdec"
+
+}
+
 func (opt *DLOptions) AlignPartCountSize(dataSize int) {
 
 	if dataSize == UnknownSize {
