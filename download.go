@@ -64,7 +64,7 @@ const (
 	Local DLType = iota
 	Online
 
-	MaxFetch = 2
+	MaxFetch = 3
 )
 
 func (d *Download) Start() error {
@@ -91,13 +91,11 @@ func (d *Download) Start() error {
 	if fetchErr = CatchErr(errCh, partCount); fetchErr != nil {
 		d.Cancel()
 	}
-
-	d.Files.WaitClosingSIG()
 	d.Status = Stopping
 
 	d.Flow.WG.Wait()
 	d.Status = Stopped
-	return fetchErr
+	return errors.Join(fetchErr, d.Files.Error())
 }
 
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
@@ -108,7 +106,8 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 		src := pullDataCaster()
 
 		if f.State == Completed || f.State == Broken {
-			f.ClosingSIG <- true
+			f.Err = f.Close()
+			errCh <- nil
 			continue
 		}
 
@@ -124,7 +123,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 
 	dc := ep.Src
 	f := ep.Dst
-	defer func() { f.ClosingSIG <- true }()
+	defer func() { f.Err = f.Close() }()
 
 	if f.State == Unknown {
 		err := f.Truncate(0)
