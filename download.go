@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -69,8 +70,12 @@ const (
 )
 
 func (d *Download) Start() error {
-	defer d.Files.Close()
-	defer Close(d.Sources)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(errors.Join(toErr(r), d.Files.Close(), Close(d.Sources)))
+			d.Status = Stopped
+		}
+	}()
 
 	var fetchErr error
 	var ctx context.Context
@@ -85,7 +90,6 @@ func (d *Download) Start() error {
 
 	d.Status = Running
 	partCount := len(d.Files)
-
 	errCh := make(chan error, partCount)
 
 	d.Flow.WG.Add(1)
@@ -102,7 +106,13 @@ func (d *Download) Start() error {
 }
 
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
-	defer d.Flow.WG.Done()
+	defer func() {
+		d.Flow.WG.Done()
+		if r := recover(); r != nil {
+			errCh <- toErr(r)
+		}
+	}()
+
 	pullDataCaster := DataCasterPuller(d.Sources)
 
 	for _, f := range d.Files {
@@ -121,8 +131,13 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 }
 
 func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- error) {
-	defer fc.WG.Done()
-	defer fc.Release(fc.Limiter)
+	defer func() {
+		fc.WG.Done()
+		fc.Release(fc.Limiter)
+		if r := recover(); r != nil {
+			errCh <- toErr(r)
+		}
+	}()
 
 	dc := ep.Src
 	f := ep.Dst
@@ -357,11 +372,16 @@ func DataCasterPuller(dcs []DataCaster) func() DataCaster {
 
 func Close(dcs []DataCaster) error {
 
+	if dcs == nil {
+		return nil
+	}
+
 	var err error
 	for _, dc := range dcs {
 		err = errors.Join(err, dc.Close())
 	}
 	return err
+
 }
 
 func (r *ctxReader) Read(p []byte) (int, error) {
