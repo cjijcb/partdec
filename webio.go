@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"net/url"
+	"path"
 	"time"
 )
 
@@ -100,5 +103,37 @@ func GetHeaders(rawURL string) (http.Header, int64, error) {
 	}
 
 	return resp.Header, resp.ContentLength, nil
+}
 
+func newFileNameFromHeader(hdr http.Header) string {
+
+	if hdr == nil {
+		return ""
+	}
+
+	cd := hdr.Get("Content-Disposition")
+	if cd == "" {
+		return ""
+	}
+
+	_, params, err := mime.ParseMediaType(cd)
+	if err != nil {
+		return ""
+	}
+
+	fileName, ok := params["filename"]
+	if !ok || fileName == "" {
+		return ""
+	}
+
+	return fileName
+}
+
+func newFileNameFromURL(rawURL string) string {
+
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return path.Base(parsedURL.Path)
 }

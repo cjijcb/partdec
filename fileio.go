@@ -4,11 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
-	"net/http"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 )
 
@@ -44,25 +40,6 @@ const (
 	CurrentDir    = "."
 	PathSeparator = string(os.PathSeparator)
 )
-
-func NewFileName(uri string, hdr http.Header) string {
-
-	if hdr == nil {
-		fileName := path.Base(uri)
-		return fileName
-	}
-
-	_, params, _ := mime.ParseMediaType(hdr.Get("Content-Disposition"))
-
-	if fileName := params["filename"]; fileName != "" {
-		return fileName
-	} else {
-		url, _ := url.Parse(uri)
-		fileName := path.Base(url.Path)
-		return fileName
-	}
-
-}
 
 func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
 
@@ -288,6 +265,11 @@ func (fs FileIOs) setByteRangeByPartSize(dataSize int, partSize int) error {
 	}
 
 	return nil
+}
+
+func newFileNameFromPath(path string) string {
+
+	return filepath.Base(path)
 }
 
 func FileNameIndexer(maxIndex int) func(string) string {
