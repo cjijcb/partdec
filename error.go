@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -24,4 +25,8 @@ func CatchErr(errCh chan error, maxErrCount int) error {
 
 	return nil
 
+}
+
+func toErr(a any) error {
+	return fmt.Errorf(fmt.Sprintf("%v", a))
 }

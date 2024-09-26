@@ -318,6 +318,10 @@ func (f *FileIO) Close() error {
 
 func (fs FileIOs) Close() error {
 
+	if fs == nil {
+		return nil
+	}
+
 	var err error
 	for _, f := range fs {
 		if f.isOpen {
