@@ -27,7 +27,7 @@ type (
 		Scope ByteRange
 		State FileState
 		Path  FilePath
-		Err   error
+		Warn  error
 	}
 
 	FileIOs []*FileIO
@@ -121,7 +121,7 @@ func NewFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 			DstDir:   dstDir,
 			Relative: relvPath,
 		},
-		Err: nil,
+		Warn: nil,
 	}
 
 	return fio, err
@@ -318,16 +318,16 @@ func (f *FileIO) Size() (int, error) {
 
 }
 
-func (fs FileIOs) Error() error {
+func (fs FileIOs) Warning() error {
 	var err error
 	for _, f := range fs {
-		err = errors.Join(err, f.Err)
+		err = errors.Join(err, f.Warn)
 	}
 	return err
 }
 
 func (fs FileIOs) Close() {
 	for _, f := range fs {
-		f.Close()
+		f.Warn = f.Close()
 	}
 }

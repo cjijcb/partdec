@@ -95,7 +95,7 @@ func (d *Download) Start() error {
 
 	d.Flow.WG.Wait()
 	d.Status = Stopped
-	return errors.Join(fetchErr, d.Files.Error())
+	return errors.Join(fetchErr, d.Files.Warning())
 }
 
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
@@ -106,7 +106,7 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 		src := pullDataCaster()
 
 		if f.State == Completed || f.State == Broken {
-			f.Err = f.Close()
+			f.Warn = f.Close()
 			errCh <- nil
 			continue
 		}
@@ -123,7 +123,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 
 	dc := ep.Src
 	f := ep.Dst
-	defer func() { f.Err = f.Close() }()
+	defer func() { f.Warn = f.Close() }()
 
 	if f.State == Unknown {
 		err := f.Truncate(0)
