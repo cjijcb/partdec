@@ -1,3 +1,3 @@
-module fissionDownloader/m
+module partdec/m
 
-go 1.22.5
+go 1.23.1

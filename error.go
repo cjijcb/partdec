@@ -1,9 +1,17 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 )
+
+// var joinErr func(...error) error = errors.Join
+var errJoin = errors.Join
+
+func toErr(a any) error {
+	return fmt.Errorf(fmt.Sprintf("%v", a))
+}
 
 func FetchErrHandle(err error) {
 	if err != nil {
@@ -25,8 +33,4 @@ func CatchErr(errCh chan error, maxErrCount int) error {
 
 	return nil
 
-}
-
-func toErr(a any) error {
-	return fmt.Errorf(fmt.Sprintf("%v", a))
 }
