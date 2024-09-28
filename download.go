@@ -12,8 +12,9 @@ import (
 
 type (
 	DataCaster interface {
-		DataCast(ByteRange) (io.ReadCloser, error)
+		DataCast(ByteRange) (io.Reader, error)
 		Close() error
+		IsOpen() bool
 	}
 
 	DLStatus uint8
@@ -66,7 +67,7 @@ const (
 	Local DLType = iota
 	Online
 
-	MaxFetch = 3
+	MaxFetch = 2
 )
 
 func (d *Download) Start() error {
@@ -113,10 +114,14 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 		}
 	}()
 
-	pullDataCaster := DataCasterPuller(d.Sources)
+	genDC := DataCasterGenerator(d.Sources, d.URI, d.Type)
 
 	for _, f := range d.Files {
-		src := pullDataCaster()
+		src, err := genDC()
+		if err != nil {
+			errCh <- err
+			return
+		}
 
 		if f.State == Completed || f.State == Broken {
 			f.Warn = f.Close()
@@ -153,7 +158,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 
 	f.Seek(0, io.SeekEnd)
 	r, err := dc.DataCast(f.Scope)
-	defer r.Close()
+	defer dc.Close()
 
 	if err != nil {
 		errCh <- err
@@ -229,21 +234,9 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	srcs := make([]DataCaster, opt.PartCount)
-	for i := range opt.PartCount {
-
-		ct := NewClient()
-		req, err := NewReq(http.MethodGet, opt.URI)
-		if err != nil {
-			return nil, err
-		}
-		srcs[i] = NewWebIO(ct, req)
-
-	}
-
 	return &Download{
 		Files:    fios,
-		Sources:  srcs,
+		Sources:  make([]DataCaster, 2*MaxFetch),
 		URI:      opt.URI,
 		DataSize: int(cl),
 		Type:     Online,
@@ -259,7 +252,6 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	dataSize := info.Size()
 
 	opt.AlignPartCountSize(int(dataSize))
@@ -273,16 +265,9 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	fio, err := NewFileIO(opt.URI, CurrentDir, os.O_RDONLY)
-	if err != nil {
-		return nil, err
-	}
-	srcs := make([]DataCaster, 1)
-	srcs[0] = fio
-
 	return &Download{
 		Files:    fios,
-		Sources:  srcs,
+		Sources:  make([]DataCaster, 2*MaxFetch),
 		URI:      opt.URI,
 		DataSize: int(dataSize),
 		Type:     Local,
@@ -355,17 +340,47 @@ func NewFlowControl(limit int) *FlowControl {
 	}
 }
 
-func DataCasterPuller(dcs []DataCaster) func() DataCaster {
+func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataCaster, error) {
 
-	maxIndex := len(dcs) - 1
-	currentIndex := -1
+	var genDC func() (DataCaster, error)
 
-	return func() DataCaster {
-		if currentIndex < maxIndex {
-			currentIndex++
-			return dcs[currentIndex]
+	switch dlt {
+	case Local:
+		genDC = func() (DataCaster, error) {
+			fio, err := NewFileIO(uri, CurrentDir, os.O_RDONLY)
+			if err != nil {
+				return nil, err
+			}
+			return fio, nil
 		}
-		return dcs[currentIndex]
+
+	case Online:
+		genDC = func() (DataCaster, error) {
+
+			req, err := NewReq(http.MethodGet, uri)
+			if err != nil {
+				return nil, err
+			}
+			return NewWebIO(NewClient(), req), nil
+		}
+	}
+
+	return func() (DataCaster, error) {
+
+		dc, err := genDC()
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range dcs {
+			if dcs[i] == nil || !dcs[i].IsOpen() {
+				dcs[i] = dc
+				return dcs[i], nil
+			}
+		}
+
+		return nil, fmt.Errorf("no available DataCaster slots")
+
 	}
 
 }
@@ -378,8 +393,12 @@ func Close(dcs []DataCaster) error {
 
 	var err error
 	for _, dc := range dcs {
-		err = errors.Join(err, dc.Close())
+
+		if dc != nil && dc.IsOpen() {
+			err = errors.Join(err, dc.Close())
+		}
 	}
+
 	return err
 
 }

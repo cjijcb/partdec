@@ -15,6 +15,8 @@ type (
 	WebIO struct {
 		Client  *http.Client
 		Request *http.Request
+		Body    io.ReadCloser
+		isOpen  bool
 	}
 )
 
@@ -26,6 +28,7 @@ func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
 	wbio := &WebIO{
 		Client:  ct,
 		Request: req,
+		isOpen:  true,
 	}
 
 	return wbio
@@ -52,7 +55,7 @@ func NewClient() *http.Client {
 	return ct
 }
 
-func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
+func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
 
 	wbio.Request.Header.Set("Range", BuildRangeHeader(br))
 
@@ -65,10 +68,22 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 		return nil, errors.New(resp.Status)
 	}
 
-	return resp.Body, nil
+	wbio.Body = resp.Body
+
+	return wbio.Body, nil
+}
+
+func (wbio *WebIO) IsOpen() bool {
+	return wbio.isOpen
 }
 
 func (wbio *WebIO) Close() error {
+
+	if err := wbio.Body.Close(); err != nil {
+		return err
+	}
+
+	wbio.isOpen = false
 	return nil
 }
 

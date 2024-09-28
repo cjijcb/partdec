@@ -10,7 +10,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	partCount := 3
-	partSize := 1747626
+	partSize := -1 //1747626
 	uri := "http://ipv4.download.thinkbroadband.com/5MB.zip"
 	//uri := "trusrc.dat"
 	dstDirs := []string{"dir1/", "dir2/"}
