@@ -67,7 +67,7 @@ const (
 	Local DLType = iota
 	Online
 
-	MaxFetch = 2
+	MaxFetch = 1
 )
 
 func (d *Download) Start() error {
@@ -236,7 +236,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	return &Download{
 		Files:    fios,
-		Sources:  make([]DataCaster, 1.5*MaxFetch),
+		Sources:  make([]DataCaster, 2*MaxFetch),
 		URI:      opt.URI,
 		DataSize: int(cl),
 		Type:     Online,
@@ -267,7 +267,7 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
 	return &Download{
 		Files:    fios,
-		Sources:  make([]DataCaster, 1.5*MaxFetch),
+		Sources:  make([]DataCaster, 2*MaxFetch),
 		URI:      opt.URI,
 		DataSize: int(dataSize),
 		Type:     Local,
@@ -363,6 +363,10 @@ func NewDataCaster(uri string, dlt DLType) (DataCaster, error) {
 
 func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataCaster, error) {
 
+	maxRetry := len(dcs) + 1
+	lastIndex := len(dcs) - 1
+	i := -1
+
 	return func() (DataCaster, error) {
 
 		dc, err := NewDataCaster(uri, dlt)
@@ -370,7 +374,14 @@ func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataC
 			return nil, err
 		}
 
-		for i := range dcs {
+		for range maxRetry {
+
+			if i < lastIndex {
+				i++
+			} else {
+				i = 0
+			}
+
 			if dcs[i] == nil || !dcs[i].IsOpen() {
 				dcs[i] = dc
 				return dcs[i], nil
