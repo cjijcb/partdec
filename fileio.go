@@ -104,7 +104,7 @@ func NewFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 	return fio, err
 }
 
-func (f *FileIO) DataCast(br ByteRange) (io.Reader, error) {
+func (fio *FileIO) DataCast(br ByteRange) (io.Reader, error) {
 
 	rangeStart := br.Start + br.Offset
 	rangeEnd := br.End
@@ -115,37 +115,35 @@ func (f *FileIO) DataCast(br ByteRange) (io.Reader, error) {
 
 	rangeEnd = rangeEnd - rangeStart + 1
 
-	r := io.NewSectionReader(f, int64(rangeStart), int64(rangeEnd))
+	r := io.NewSectionReader(fio, int64(rangeStart), int64(rangeEnd))
 
 	return r, nil
 
 }
 
-func (f *FileIO) NewDataCaster(path string) (DataCaster, error) {
+func (fio *FileIO) NewDataCaster(path string) (DataCaster, error) {
 
-	fio, err := NewFileIO(path, CurrentDir, os.O_RDONLY)
+	var err error
+	fio, err = NewFileIO(path, CurrentDir, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
 
-	f = fio
-
-	return f, nil
-
+	return fio, nil
 }
 
-func (fs FileIOs) RenewByState(sm map[FileState]bool) error {
+func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 
-	for _, f := range fs {
-		if sm[f.State] == false {
+	for _, fio := range fios {
+		if sm[fio.State] == false {
 			continue
 		}
 
-		if err := f.Truncate(0); err != nil {
+		if err := fio.Truncate(0); err != nil {
 			return err
 		}
 
-		f.State = New
+		fio.State = New
 
 	}
 
@@ -153,28 +151,28 @@ func (fs FileIOs) RenewByState(sm map[FileState]bool) error {
 
 }
 
-func (fs FileIOs) SetInitState() error {
+func (fios FileIOs) SetInitState() error {
 
-	for _, f := range fs {
-		size, err := f.Size()
+	for _, fio := range fios {
+		size, err := fio.Size()
 		if err != nil {
 			return err
 		}
-		sb := f.Scope.Start
-		eb := f.Scope.End
+		sb := fio.Scope.Start
+		eb := fio.Scope.End
 
 		if sb == UnknownSize || eb == UnknownSize {
-			f.State = Unknown
+			fio.State = Unknown
 		} else if sb > eb {
-			f.State = Broken
+			fio.State = Broken
 		} else if size > eb-sb+1 {
-			f.State = Broken
+			fio.State = Broken
 		} else if size == eb-sb+1 {
-			f.State = Completed
+			fio.State = Completed
 		} else if size > 0 {
-			f.State = Resume
+			fio.State = Resume
 		} else if size == 0 {
-			f.State = New
+			fio.State = New
 		}
 
 	}
@@ -183,22 +181,22 @@ func (fs FileIOs) SetInitState() error {
 
 }
 
-func (fs FileIOs) SetByteRange(dataSize int, partSize int) error {
+func (fios FileIOs) SetByteRange(dataSize int, partSize int) error {
 
 	if dataSize == UnknownSize {
-		for _, f := range fs {
-			f.Scope.Start = UnknownSize
-			f.Scope.End = UnknownSize
+		for _, fio := range fios {
+			fio.Scope.Start = UnknownSize
+			fio.Scope.End = UnknownSize
 		}
 		return nil
 	}
 
 	if partSize > 0 {
-		if err := fs.setByteRangeByPartSize(dataSize, partSize); err != nil {
+		if err := fios.setByteRangeByPartSize(dataSize, partSize); err != nil {
 			return err
 		}
 	} else {
-		if err := fs.setByteRangeByPartCount(dataSize); err != nil {
+		if err := fios.setByteRangeByPartCount(dataSize); err != nil {
 			return err
 		}
 	}
@@ -206,11 +204,11 @@ func (fs FileIOs) SetByteRange(dataSize int, partSize int) error {
 	return nil
 }
 
-func (fs FileIOs) setByteRangeByPartCount(dataSize int) error {
+func (fios FileIOs) setByteRangeByPartCount(dataSize int) error {
 
 	var rangeStart, rangeEnd int
 
-	partCount := len(fs)
+	partCount := len(fios)
 	basePartSize := dataSize / partCount
 	remainder := dataSize % partCount
 
@@ -226,24 +224,24 @@ func (fs FileIOs) setByteRangeByPartCount(dataSize int) error {
 		rangeEnd = (rangeStart - 1) + basePartSize + extraByte
 		offset = offset + extraByte
 
-		f := fs[i]
+		fio := fios[i]
 
-		f.Scope.Start = rangeStart
-		f.Scope.End = rangeEnd
-		size, err := f.Size()
+		fio.Scope.Start = rangeStart
+		fio.Scope.End = rangeEnd
+		size, err := fio.Size()
 
 		if err != nil {
 			return err
 		}
 
-		f.Scope.Offset = size
+		fio.Scope.Offset = size
 
 	}
 
 	return nil
 }
 
-func (fs FileIOs) setByteRangeByPartSize(dataSize int, partSize int) error {
+func (fios FileIOs) setByteRangeByPartSize(dataSize int, partSize int) error {
 
 	var rangeStart, rangeEnd int
 
@@ -264,17 +262,17 @@ func (fs FileIOs) setByteRangeByPartSize(dataSize int, partSize int) error {
 			rangeEnd = (rangeStart - 1) + partSize
 		}
 
-		f := fs[i]
+		fio := fios[i]
 
-		f.Scope.Start = rangeStart
-		f.Scope.End = rangeEnd
-		size, err := f.Size()
+		fio.Scope.Start = rangeStart
+		fio.Scope.End = rangeEnd
+		size, err := fio.Size()
 
 		if err != nil {
 			return err
 		}
 
-		f.Scope.Offset = size
+		fio.Scope.Offset = size
 	}
 
 	return nil
@@ -306,9 +304,9 @@ func FileNameIndexer(maxIndex int) func(string) string {
 
 }
 
-func (f *FileIO) Size() (int, error) {
+func (fio *FileIO) Size() (int, error) {
 
-	info, err := os.Stat(f.Path.Relative)
+	info, err := os.Stat(fio.Path.Relative)
 	if err != nil {
 		return UnknownSize, nil
 	}
@@ -316,27 +314,27 @@ func (f *FileIO) Size() (int, error) {
 
 }
 
-func (f *FileIO) IsOpen() bool {
-	return f.isOpen
+func (fio *FileIO) IsOpen() bool {
+	return fio.isOpen
 }
 
-func (f *FileIO) Close() error {
+func (fio *FileIO) Close() error {
 
-	if err := f.File.Close(); err != nil {
+	if err := fio.File.Close(); err != nil {
 		return err
 	}
 
-	f.isOpen = false
+	fio.isOpen = false
 	return nil
 
 }
 
-func (fs FileIOs) Close() error {
+func (fios FileIOs) Close() error {
 
 	var err error
-	for _, f := range fs {
-		if f != nil && f.isOpen {
-			err = errors.Join(err, f.Close())
+	for _, fio := range fios {
+		if fio != nil && fio.isOpen {
+			err = errors.Join(err, fio.Close())
 		}
 	}
 	return err

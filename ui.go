@@ -23,26 +23,26 @@ func ShowProgress(d *Download) {
 	}()
 
 	for d.Status == Pending || d.Status == Running {
-		for _, f := range d.Files {
-			size, _ := f.Size()
-			sb := f.Scope.Start
-			eb := f.Scope.End
+		for _, fio := range d.Files {
+			size, _ := fio.Size()
+			sb := fio.Scope.Start
+			eb := fio.Scope.End
 			fmt.Printf(
 				"state: %d | %d / %d | %s\n",
-				f.State,
+				fio.State,
 				size,
 				(eb - sb + 1),
-				f.Path.Relative,
+				fio.Path.Relative,
 			)
 		}
 		time.Sleep(250 * time.Millisecond)
 		//fmt.Printf(strings.Repeat(clearLine, lineCount))
 	}
-	for _, f := range d.Files {
-		size, _ := f.Size()
-		sb := f.Scope.Start
-		eb := f.Scope.End
-		fmt.Printf("state: %d | %d / %d\n", f.State, size, (eb - sb + 1))
+	for _, fio := range d.Files {
+		size, _ := fio.Size()
+		sb := fio.Scope.Start
+		eb := fio.Scope.End
+		fmt.Printf("state: %d | %d / %d\n", fio.State, size, (eb - sb + 1))
 	}
 
 }
