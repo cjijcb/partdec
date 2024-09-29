@@ -360,16 +360,13 @@ func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataC
 	}
 
 	return func() (DataCaster, error) {
-
 		dc, err := gendc(uri)
 		if err != nil {
 			return nil, err
 		}
-
 		for range maxRetry {
-			if i < lastIndex {
-				i++
-			} else {
+			i++
+			if i > lastIndex {
 				i = 0
 			}
 			if dcs[i] == nil || !dcs[i].IsOpen() {
