@@ -11,8 +11,8 @@ func main() {
 
 	partCount := 3
 	partSize := -1 //1747626
-	uri := "http://ipv4.download.thinkbroadband.com/5MB.zip"
-	//uri := "trusrc.dat"
+	//uri := "http://ipv4.download.thinkbroadband.com/5MB.zip"
+	uri := "trusrc.dat"
 	dstDirs := []string{"dir1/", "dir2/"}
 
 	opt := DLOptions{
