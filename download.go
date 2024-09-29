@@ -114,24 +114,24 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 		}
 	}()
 
-	genDC := DataCasterGenerator(d.Sources, d.URI, d.Type)
+	gendc := DataCasterGenerator(d.Sources, d.URI, d.Type)
 
-	for _, f := range d.Files {
-		src, err := genDC()
+	for _, fio := range d.Files {
+		dc, err := gendc()
 		if err != nil {
 			errCh <- err
 			return
 		}
 
-		if f.State == Completed || f.State == Broken {
-			f.Close()
+		if fio.State == Completed || fio.State == Broken {
+			fio.Close()
 			errCh <- nil
 			continue
 		}
 
 		<-d.Flow.Acquire(d.Flow.Limiter)
 		d.Flow.WG.Add(1)
-		go fetch(ctx, &EndPoint{src, f}, d.Flow, errCh)
+		go fetch(ctx, &EndPoint{dc, fio}, d.Flow, errCh)
 	}
 }
 
@@ -145,19 +145,19 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 	}()
 
 	dc := ep.Src
-	f := ep.Dst
-	defer f.Close()
+	fio := ep.Dst
+	defer fio.Close()
 
-	if f.State == Unknown {
-		err := f.Truncate(0)
+	if fio.State == Unknown {
+		err := fio.Truncate(0)
 		if err != nil {
 			errCh <- err
 			return
 		}
 	}
 
-	f.Seek(0, io.SeekEnd)
-	r, err := dc.DataCast(f.Scope)
+	fio.Seek(0, io.SeekEnd)
+	r, err := dc.DataCast(fio.Scope)
 	defer dc.Close()
 
 	if err != nil {
@@ -165,7 +165,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 		return
 	}
 
-	_, err = f.ReadFrom(newCtxReader(ctx, r))
+	_, err = fio.ReadFrom(newCtxReader(ctx, r))
 	if err != nil {
 		errCh <- err
 		return
