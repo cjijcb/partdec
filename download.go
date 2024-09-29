@@ -340,48 +340,38 @@ func NewFlowControl(limit int) *FlowControl {
 	}
 }
 
-func NewDataCaster(uri string, dlt DLType) (DataCaster, error) {
-
-	switch dlt {
-	case Local:
-		fio, err := NewFileIO(uri, CurrentDir, os.O_RDONLY)
-		if err != nil {
-			return nil, err
-		}
-		return fio, nil
-	case Online:
-		req, err := NewReq(http.MethodGet, uri)
-		if err != nil {
-			return nil, err
-		}
-		return NewWebIO(NewClient(), req), nil
-	default:
-		return nil, fmt.Errorf("unsupported download type")
-	}
-
-}
-
 func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataCaster, error) {
 
-	maxRetry := len(dcs) + 1
-	lastIndex := len(dcs) - 1
-	i := -1
+	var (
+		gendc     func(string) (DataCaster, error)
+		wbio      = &WebIO{}
+		fio       = &FileIO{}
+		maxRetry  = len(dcs) + 1
+		lastIndex = len(dcs) - 1
+		i         = -1
+	)
+	switch dlt {
+	case Local:
+		gendc = fio.NewDataCaster
+	case Online:
+		gendc = wbio.NewDataCaster
+	default:
+		gendc = func(string) (DataCaster, error) { return nil, fmt.Errorf("unknown DLType") }
+	}
 
 	return func() (DataCaster, error) {
 
-		dc, err := NewDataCaster(uri, dlt)
+		dc, err := gendc(uri)
 		if err != nil {
 			return nil, err
 		}
 
 		for range maxRetry {
-
 			if i < lastIndex {
 				i++
 			} else {
 				i = 0
 			}
-
 			if dcs[i] == nil || !dcs[i].IsOpen() {
 				dcs[i] = dc
 				return dcs[i], nil

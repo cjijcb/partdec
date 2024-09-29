@@ -73,6 +73,18 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
 	return wbio.Body, nil
 }
 
+func (wbio *WebIO) NewDataCaster(rawURL string) (DataCaster, error) {
+
+	req, err := NewReq(http.MethodGet, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	wbio = NewWebIO(NewClient(), req)
+
+	return wbio, nil
+
+}
+
 func (wbio *WebIO) IsOpen() bool {
 	return wbio.isOpen
 }
