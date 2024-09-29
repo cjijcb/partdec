@@ -124,7 +124,7 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 		}
 
 		if f.State == Completed || f.State == Broken {
-			f.Warn = f.Close()
+			f.Close()
 			errCh <- nil
 			continue
 		}
@@ -146,7 +146,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 
 	dc := ep.Src
 	f := ep.Dst
-	defer func() { f.Warn = f.Close() }()
+	defer f.Close()
 
 	if f.State == Unknown {
 		err := f.Truncate(0)
@@ -387,27 +387,19 @@ func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataC
 				return dcs[i], nil
 			}
 		}
-
 		return nil, fmt.Errorf("no available DataCaster slots")
-
 	}
 
 }
 
 func Close(dcs []DataCaster) error {
 
-	if dcs == nil {
-		return nil
-	}
-
 	var err error
 	for _, dc := range dcs {
-
 		if dc != nil && dc.IsOpen() {
 			err = errors.Join(err, dc.Close())
 		}
 	}
-
 	return err
 
 }

@@ -23,7 +23,6 @@ type (
 		Scope  ByteRange
 		State  FileState
 		Path   FilePath
-		Warn   error
 		isOpen bool
 	}
 
@@ -99,7 +98,6 @@ func NewFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
 			DstDir:   dstDir,
 			Relative: relvPath,
 		},
-		Warn:   nil,
 		isOpen: true,
 	}
 
@@ -322,18 +320,12 @@ func (f *FileIO) Close() error {
 
 func (fs FileIOs) Close() error {
 
-	if fs == nil {
-		return nil
-	}
-
 	var err error
 	for _, f := range fs {
-		if f.isOpen {
-			f.Warn = f.Close()
+		if f != nil && f.isOpen {
+			err = errors.Join(err, f.Close())
 		}
-		err = errors.Join(err, f.Warn)
 	}
-
 	return err
 
 }
