@@ -79,8 +79,8 @@ func (wbio *WebIO) NewDataCaster(rawURL string) (DataCaster, error) {
 	if err != nil {
 		return nil, err
 	}
-	wbio = NewWebIO(NewClient(), req)
 
+	wbio = NewWebIO(NewClient(), req)
 	return wbio, nil
 
 }

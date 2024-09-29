@@ -123,13 +123,14 @@ func (fio *FileIO) DataCast(br ByteRange) (io.Reader, error) {
 
 func (fio *FileIO) NewDataCaster(path string) (DataCaster, error) {
 
-	var err error
-	fio, err = NewFileIO(path, CurrentDir, os.O_RDONLY)
+	newfio, err := NewFileIO(path, CurrentDir, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
 
+	fio = newfio
 	return fio, nil
+
 }
 
 func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
