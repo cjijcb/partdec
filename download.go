@@ -236,7 +236,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	return &Download{
 		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxFetch),
+		Sources:  make([]DataCaster, 1.5*MaxFetch),
 		URI:      opt.URI,
 		DataSize: int(cl),
 		Type:     Online,
@@ -267,7 +267,7 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
 	return &Download{
 		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxFetch),
+		Sources:  make([]DataCaster, 1.5*MaxFetch),
 		URI:      opt.URI,
 		DataSize: int(dataSize),
 		Type:     Local,
@@ -340,34 +340,32 @@ func NewFlowControl(limit int) *FlowControl {
 	}
 }
 
-func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataCaster, error) {
-
-	var genDC func() (DataCaster, error)
+func NewDataCaster(uri string, dlt DLType) (DataCaster, error) {
 
 	switch dlt {
 	case Local:
-		genDC = func() (DataCaster, error) {
-			fio, err := NewFileIO(uri, CurrentDir, os.O_RDONLY)
-			if err != nil {
-				return nil, err
-			}
-			return fio, nil
+		fio, err := NewFileIO(uri, CurrentDir, os.O_RDONLY)
+		if err != nil {
+			return nil, err
 		}
-
+		return fio, nil
 	case Online:
-		genDC = func() (DataCaster, error) {
-
-			req, err := NewReq(http.MethodGet, uri)
-			if err != nil {
-				return nil, err
-			}
-			return NewWebIO(NewClient(), req), nil
+		req, err := NewReq(http.MethodGet, uri)
+		if err != nil {
+			return nil, err
 		}
+		return NewWebIO(NewClient(), req), nil
+	default:
+		return nil, fmt.Errorf("unsupported download type")
 	}
+
+}
+
+func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataCaster, error) {
 
 	return func() (DataCaster, error) {
 
-		dc, err := genDC()
+		dc, err := NewDataCaster(uri, dlt)
 		if err != nil {
 			return nil, err
 		}
