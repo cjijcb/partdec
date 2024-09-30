@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 )
 
 type (
@@ -17,11 +18,18 @@ type (
 		IsOpen() bool
 	}
 
+	DataCasters []DataCaster
+
 	DLStatus uint8
 	DLType   uint8
 	EndPoint struct {
 		Src DataCaster
 		Dst *FileIO
+	}
+	IOMode struct {
+		Timeout    time.Duration
+		UserHeader http.Header
+		O_FLAGS    int
 	}
 	FlowControl struct {
 		WG      *sync.WaitGroup
@@ -38,11 +46,12 @@ type (
 		PartSize  int
 		ReDL      map[FileState]bool
 		UI        func(*Download)
+		*IOMode
 	}
 
 	Download struct {
 		Files    FileIOs
-		Sources  []DataCaster
+		Sources  DataCasters
 		Flow     *FlowControl
 		URI      string
 		DataSize int
@@ -51,6 +60,7 @@ type (
 		ReDL     map[FileState]bool
 		UI       func(*Download)
 		Cancel   context.CancelFunc
+		*IOMode
 	}
 
 	ctxReader struct {
@@ -73,7 +83,7 @@ const (
 func (d *Download) Start() error {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println(errors.Join(toErr(r), d.Files.Close(), Close(d.Sources)))
+			fmt.Println(errors.Join(toErr(r), d.Files.Close(), d.Sources.Close()))
 			d.Status = Stopped
 		}
 	}()
@@ -103,7 +113,7 @@ func (d *Download) Start() error {
 
 	d.Flow.WG.Wait()
 	d.Status = Stopped
-	return errors.Join(fetchErr, d.Files.Close(), Close(d.Sources))
+	return errors.Join(fetchErr, d.Files.Close(), d.Sources.Close())
 }
 
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
@@ -114,7 +124,7 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 		}
 	}()
 
-	gendc := DataCasterGenerator(d.Sources, d.URI, d.Type)
+	gendc := d.DataCasterGenerator()
 
 	for _, fio := range d.Files {
 		dc, err := gendc()
@@ -243,6 +253,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
+		IOMode:   opt.IOMode,
 	}, nil
 }
 
@@ -274,6 +285,7 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
+		IOMode:   opt.IOMode,
 	}, nil
 
 }
@@ -340,27 +352,27 @@ func NewFlowControl(limit int) *FlowControl {
 	}
 }
 
-func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataCaster, error) {
+func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 	var (
-		gendc     func(string) (DataCaster, error)
-		wbio      = &WebIO{}
-		fio       = &FileIO{}
-		maxRetry  = len(dcs) + 1
-		lastIndex = len(dcs) - 1
-		i         = -1
+		gendc               func(string, *IOMode) (DataCaster, error)
+		dcs                 = d.Sources
+		maxRetry, lastIndex = len(dcs) + 1, len(dcs) - 1
+		i                   = -1
 	)
-	switch dlt {
+	switch d.Type {
 	case Local:
-		gendc = fio.NewDataCaster
+		gendc = NewFileDataCaster
 	case Online:
-		gendc = wbio.NewDataCaster
+		gendc = NewWebDataCaster
 	default:
-		gendc = func(string) (DataCaster, error) { return nil, fmt.Errorf("unknown DLType") }
+		gendc = func(string, *IOMode) (DataCaster, error) {
+			return nil, fmt.Errorf("unknown DLType")
+		}
 	}
 
 	return func() (DataCaster, error) {
-		dc, err := gendc(uri)
+		dc, err := gendc(d.URI, d.IOMode)
 		if err != nil {
 			return nil, err
 		}
@@ -379,7 +391,7 @@ func DataCasterGenerator(dcs []DataCaster, uri string, dlt DLType) func() (DataC
 
 }
 
-func Close(dcs []DataCaster) error {
+func (dcs DataCasters) Close() error {
 
 	var err error
 	for _, dc := range dcs {

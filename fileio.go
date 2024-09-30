@@ -16,6 +16,7 @@ type (
 
 	ByteRange struct {
 		Start, End, Offset int
+		isFullRange        bool
 	}
 
 	FileIO struct {
@@ -64,7 +65,7 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 		for range fioPerDirCount + fioExtra {
 
-			fio, err := NewFileIO(addIndex(basePath), dir, os.O_WRONLY)
+			fio, err := NewFileIO(addIndex(basePath), dir, os.O_CREATE|os.O_WRONLY)
 			if err != nil {
 				return nil, err
 			}
@@ -79,13 +80,13 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 }
 
-func NewFileIO(basePath string, dstDir string, oflag int) (*FileIO, error) {
+func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 
 	basePath = filepath.Clean(basePath)
 	dstDir = filepath.Clean(dstDir) + PathSeparator
 	relvPath := filepath.Clean(dstDir + basePath)
 
-	f, err := os.OpenFile(relvPath, os.O_CREATE|oflag, 0640)
+	f, err := os.OpenFile(relvPath, oflag, 0640)
 
 	if err != nil {
 		return nil, err
@@ -121,14 +122,13 @@ func (fio *FileIO) DataCast(br ByteRange) (io.Reader, error) {
 
 }
 
-func (fio *FileIO) NewDataCaster(path string) (DataCaster, error) {
+func NewFileDataCaster(path string, md *IOMode) (DataCaster, error) {
 
-	newfio, err := NewFileIO(path, CurrentDir, os.O_RDONLY)
+	fio, err := NewFileIO(path, CurrentDir, md.O_FLAGS)
 	if err != nil {
 		return nil, err
 	}
 
-	fio = newfio
 	return fio, nil
 
 }
@@ -153,36 +153,37 @@ func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 }
 
 func (fios FileIOs) SetInitState() error {
-
 	for _, fio := range fios {
 		size, err := fio.Size()
 		if err != nil {
 			return err
 		}
-		sb := fio.Scope.Start
-		eb := fio.Scope.End
+		rs := fio.Scope.Start
+		re := fio.Scope.End
 
-		if sb == UnknownSize || eb == UnknownSize {
+		switch {
+		case rs == UnknownSize || re == UnknownSize:
 			fio.State = Unknown
-		} else if sb > eb {
+		case rs > re:
 			fio.State = Broken
-		} else if size > eb-sb+1 {
+		case size > re-rs+1:
 			fio.State = Broken
-		} else if size == eb-sb+1 {
+		case size == re-rs+1:
 			fio.State = Completed
-		} else if size > 0 {
+		case size > 0:
 			fio.State = Resume
-		} else if size == 0 {
+		default:
 			fio.State = New
 		}
-
 	}
-
 	return nil
-
 }
 
 func (fios FileIOs) SetByteRange(dataSize int, partSize int) error {
+
+	if len(fios) == 1 {
+		fios[0].Scope.isFullRange = true
+	}
 
 	if dataSize == UnknownSize {
 		for _, fio := range fios {
