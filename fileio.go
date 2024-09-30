@@ -124,11 +124,18 @@ func (fio *FileIO) DataCast(br ByteRange) (io.Reader, error) {
 
 func NewFileDataCaster(path string, md *IOMode) (DataCaster, error) {
 
-	fio, err := NewFileIO(path, CurrentDir, md.O_FLAGS)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 
+	fio := &FileIO{
+		File: f,
+		Path: FilePath{
+			Base: path,
+		},
+		isOpen: true,
+	}
 	return fio, nil
 
 }
