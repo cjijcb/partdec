@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"runtime"
 )
 
@@ -9,11 +10,14 @@ func main() {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	partCount := 3
+	partCount := 2
 	partSize := -1 //1747626
-	//uri := "http://ipv4.download.thinkbroadband.com/5MB.zip"
-	uri := "trusrc.dat"
+	uri := "http://ipv4.download.thinkbroadband.com/5MB.zip"
+	//uri := "trusrc.dat"
 	dstDirs := []string{"dir1/", "dir2/"}
+
+	hdr := make(http.Header)
+	hdr.Add("Range", "bytes=0-127")
 
 	opt := DLOptions{
 		URI:       uri,
@@ -23,6 +27,9 @@ func main() {
 		PartSize:  partSize,
 		ReDL:      map[FileState]bool{Completed: true, Resume: false, Broken: true},
 		UI:        ShowProgress,
+		IOMode: &IOMode{
+			UserHeader: hdr,
+		},
 	}
 
 	d, err := NewDownload(opt)

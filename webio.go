@@ -57,7 +57,9 @@ func NewClient() *http.Client {
 
 func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
 
-	wbio.Request.Header.Set("Range", BuildRangeHeader(br))
+	if !br.isFullRange {
+		wbio.Request.Header.Set("Range", BuildRangeHeader(br))
+	}
 
 	resp, err := wbio.Client.Do(wbio.Request)
 	if err != nil {
@@ -73,16 +75,21 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
 	return wbio.Body, nil
 }
 
-func (wbio *WebIO) NewDataCaster(rawURL string) (DataCaster, error) {
+func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
 
 	req, err := NewReq(http.MethodGet, rawURL)
 	if err != nil {
 		return nil, err
 	}
+	wbio := NewWebIO(NewClient(), req)
 
-	wbio = NewWebIO(NewClient(), req)
+	if md != nil {
+		for k := range md.UserHeader {
+			wbio.Request.Header.Add(k, md.UserHeader.Get(k))
+		}
+		wbio.Client.Timeout = md.Timeout
+	}
 	return wbio, nil
-
 }
 
 func (wbio *WebIO) IsOpen() bool {
