@@ -77,7 +77,7 @@ const (
 	Local DLType = iota
 	Online
 
-	MaxFetch = 2
+	MaxFetch = 16
 )
 
 func (d *Download) Start() error {
@@ -158,6 +158,8 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 	fio := ep.Dst
 	defer fio.Close()
 
+	fio.Open()
+
 	if fio.State == Unknown {
 		err := fio.Truncate(0)
 		if err != nil {
@@ -235,6 +237,10 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	opt.AlignPartCountSize(int(cl))
 
+	if opt.PartCount > int(cl) {
+		return nil, partExceedErr
+	}
+
 	if opt.BasePath == "" {
 		opt.BasePath = NewFileName(opt.URI, hdr)
 	}
@@ -266,6 +272,10 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 	dataSize := info.Size()
 
 	opt.AlignPartCountSize(int(dataSize))
+
+	if opt.PartCount > int(dataSize) {
+		return nil, partExceedErr
+	}
 
 	if opt.BasePath == "" {
 		opt.BasePath = NewFileName(opt.URI, nil)

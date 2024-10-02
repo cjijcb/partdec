@@ -7,13 +7,22 @@ import (
 	"log"
 )
 
+//TODO
+// partCount cant be morethan dataSize
+// unknown dltype
+//no datacaster slot
+// invalid url or filepath
+// inaccesable file or dir
+
 // var joinErr func(...error) error = errors.Join
+
 var (
 	errJoin = errors.Join
 	errIs   = errors.Is
 
-	cancelErr = context.Canceled
-	abortErr  = errors.New("aborted")
+	cancelErr     = context.Canceled
+	abortErr      = errors.New("aborted")
+	partExceedErr = errors.New("number of parts exceed data size")
 )
 
 func toErr(a any) error {
