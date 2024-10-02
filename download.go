@@ -129,7 +129,7 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 	for _, fio := range d.Files {
 		dc, err := gendc()
 		if err != nil {
-			errCh <- err
+			errCh <- errJoin(err, abortErr)
 			return
 		}
 
