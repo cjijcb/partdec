@@ -147,23 +147,32 @@ func NewFileDataCaster(path string, md *IOMode) (DataCaster, error) {
 func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 
 	for _, fio := range fios {
-		if sm[fio.State] == false {
+
+		if fio.State == Unknown {
+			if err := fio.Open(); err != nil {
+				return err
+			}
+
+			if err := fio.Truncate(0); err != nil {
+				return err
+			}
+			fio.Close()
 			continue
 		}
 
-		if err := fio.Open(); err != nil {
-			return err
-		}
+		if sm[fio.State] == true {
+			if err := fio.Open(); err != nil {
+				return err
+			}
 
-		if err := fio.Truncate(0); err != nil {
+			if err := fio.Truncate(0); err != nil {
+				return err
+			}
 			fio.Close()
-			return err
 		}
-		fio.Close()
+
 		fio.State = New
-
 	}
-
 	return nil
 
 }
