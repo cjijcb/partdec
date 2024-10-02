@@ -158,20 +158,18 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 	fio := ep.Dst
 	defer fio.Close()
 
-	fio.Open()
-
-	if fio.State == Unknown {
-		err := fio.Truncate(0)
-		if err != nil {
-			errCh <- err
-			return
-		}
+	if err := fio.Open(); err != nil {
+		errCh <- err
+		return
 	}
 
-	fio.Seek(0, io.SeekEnd)
+	if _, err := fio.Seek(0, io.SeekEnd); err != nil {
+		errCh <- err
+		return
+	}
+
 	r, err := dc.DataCast(fio.Scope)
 	defer dc.Close()
-
 	if err != nil {
 		errCh <- err
 		return
