@@ -24,6 +24,8 @@ type (
 		Scope  ByteRange
 		State  FileState
 		Path   FilePath
+		Oflag  int
+		Perm   os.FileMode
 		isOpen bool
 	}
 
@@ -69,7 +71,7 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 			if err != nil {
 				return nil, err
 			}
-
+			fio.Close()
 			fios[idx] = fio
 			idx++
 		}
@@ -99,10 +101,12 @@ func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 			DstDir:   dstDir,
 			Relative: relvPath,
 		},
+		Oflag:  oflag,
+		Perm:   0640,
 		isOpen: true,
 	}
 
-	return fio, err
+	return fio, nil
 }
 
 func (fio *FileIO) DataCast(br ByteRange) (io.Reader, error) {
@@ -147,10 +151,15 @@ func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 			continue
 		}
 
-		if err := fio.Truncate(0); err != nil {
+		if err := fio.Open(); err != nil {
 			return err
 		}
 
+		if err := fio.Truncate(0); err != nil {
+			fio.Close()
+			return err
+		}
+		fio.Close()
 		fio.State = New
 
 	}
@@ -282,6 +291,17 @@ func (fios FileIOs) setByteRangeByPartSize(dataSize int, partSize int) error {
 		}
 
 		fio.Scope.Offset = size
+	}
+
+	return nil
+}
+
+func (fio *FileIO) Open() error {
+
+	var err error
+	fio.File, err = os.OpenFile(fio.Path.Relative, fio.Oflag, fio.Perm)
+	if err != nil {
+		return err
 	}
 
 	return nil
