@@ -329,13 +329,13 @@ func (fio *FileIO) IsOpen() bool {
 
 func (fio *FileIO) Close() error {
 
-	if err := fio.File.Close(); err != nil {
-		return err
+	if fio.File != nil {
+		if err := fio.File.Close(); err != nil {
+			return err
+		}
+		fio.isOpen = false
 	}
-
-	fio.isOpen = false
 	return nil
-
 }
 
 func (fios FileIOs) Close() error {

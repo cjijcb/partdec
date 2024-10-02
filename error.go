@@ -1,13 +1,20 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 )
 
 // var joinErr func(...error) error = errors.Join
-var errJoin = errors.Join
+var (
+	errJoin = errors.Join
+	errIs   = errors.Is
+
+	cancelErr = context.Canceled
+	abortErr  = errors.New("aborted")
+)
 
 func toErr(a any) error {
 	return fmt.Errorf(fmt.Sprintf("%v", a))
@@ -21,16 +28,22 @@ func FetchErrHandle(err error) {
 
 func CatchErr(errCh chan error, maxErrCount int) error {
 
+	var err error
 	errCount := 0
-	for err := range errCh {
-		if err != nil {
-			return err
+	for catchedErr := range errCh {
+
+		if catchedErr != nil {
+			err = errors.Join(err, catchedErr)
+			if errIs(catchedErr, cancelErr) || errIs(catchedErr, abortErr) {
+				break
+			}
 		}
+
 		if errCount++; errCount == maxErrCount {
 			break
 		}
 	}
 
-	return nil
+	return err
 
 }

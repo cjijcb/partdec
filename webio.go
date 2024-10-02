@@ -98,11 +98,12 @@ func (wbio *WebIO) IsOpen() bool {
 
 func (wbio *WebIO) Close() error {
 
-	if err := wbio.Body.Close(); err != nil {
-		return err
+	if wbio.Body != nil {
+		if err := wbio.Body.Close(); err != nil {
+			return err
+		}
+		wbio.isOpen = false
 	}
-
-	wbio.isOpen = false
 	return nil
 }
 
