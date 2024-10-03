@@ -19,10 +19,12 @@ import (
 var (
 	errJoin = errors.Join
 	errIs   = errors.Is
+	errNew  = errors.New
 
 	cancelErr     = context.Canceled
-	abortErr      = errors.New("aborted")
-	partExceedErr = errors.New("The size of each or the number of parts exceeds the data size.")
+	abortErr      = errNew("aborted")
+	partExceedErr = errNew("The size of each or the number of parts exceeds the data size.")
+	fileURLErr    = errNew("invalid file or URL")
 )
 
 func toErr(a any) error {
@@ -35,7 +37,7 @@ func FetchErrHandle(err error) {
 	}
 }
 
-func CatchErr(errCh chan error, maxErrCount int) error {
+func ErrCatch(errCh chan error, maxErrCount int) error {
 
 	var err error
 	errCount := 0

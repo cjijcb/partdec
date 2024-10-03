@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -38,7 +37,7 @@ const (
 	Completed
 	Broken
 	Unknown
-	
+
 	FilePerm os.FileMode = 0644
 
 	UnknownSize   = -1
@@ -374,7 +373,7 @@ func (fios FileIOs) Close() error {
 	var err error
 	for _, fio := range fios {
 		if fio != nil && fio.isOpen {
-			err = errors.Join(err, fio.Close())
+			err = errJoin(err, fio.Close())
 		}
 	}
 	return err
