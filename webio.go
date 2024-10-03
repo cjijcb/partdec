@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -67,7 +66,7 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
 	}
 
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
-		return nil, errors.New(resp.Status)
+		return nil, errNew(resp.Status)
 	}
 
 	wbio.Body = resp.Body

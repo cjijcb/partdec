@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -83,7 +82,7 @@ const (
 func (d *Download) Start() error {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println(errors.Join(toErr(r), d.Files.Close(), d.Sources.Close()))
+			fmt.Println(errJoin(toErr(r), d.Files.Close(), d.Sources.Close()))
 			d.Status = Stopped
 		}
 	}()
@@ -106,14 +105,14 @@ func (d *Download) Start() error {
 	d.Flow.WG.Add(1)
 	go d.Fetch(ctx, errCh)
 
-	if fetchErr = CatchErr(errCh, partCount); fetchErr != nil {
+	if fetchErr = ErrCatch(errCh, partCount); fetchErr != nil {
 		d.Cancel()
 	}
 	d.Status = Stopping
 
 	d.Flow.WG.Wait()
 	d.Status = Stopped
-	return errors.Join(fetchErr, d.Files.Close(), d.Sources.Close())
+	return errJoin(fetchErr, d.Files.Close(), d.Sources.Close())
 }
 
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
@@ -195,7 +194,7 @@ func NewDownload(opt DLOptions) (*Download, error) {
 	} else if ok, _ := isURL(opt.URI); ok {
 		d, err = NewOnlineDownload(&opt)
 	} else {
-		return nil, errors.New("invalid file or url")
+		return nil, fileURLErr
 	}
 
 	if err != nil {
@@ -404,7 +403,7 @@ func (dcs DataCasters) Close() error {
 	var err error
 	for _, dc := range dcs {
 		if dc != nil && dc.IsOpen() {
-			err = errors.Join(err, dc.Close())
+			err = errJoin(err, dc.Close())
 		}
 	}
 	return err
