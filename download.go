@@ -374,7 +374,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 		gendc = NewWebDataCaster
 	default:
 		gendc = func(string, *IOMode) (DataCaster, error) {
-			return nil, fmt.Errorf("unknown DLType")
+			return nil, dltypeErr
 		}
 	}
 
@@ -393,7 +393,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 				return dcs[i], nil
 			}
 		}
-		return nil, fmt.Errorf("no available DataCaster slots")
+		return nil, exhaustErr
 	}
 
 }

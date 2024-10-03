@@ -25,6 +25,8 @@ var (
 	abortErr      = errNew("aborted")
 	partExceedErr = errNew("The size of each or the number of parts exceeds the data size.")
 	fileURLErr    = errNew("invalid file or URL")
+	dltypeErr     = errNew("unknown download type")
+	exhaustErr    = errNew("cache resource exhausted")
 )
 
 func toErr(a any) error {
