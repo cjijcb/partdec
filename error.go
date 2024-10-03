@@ -22,7 +22,7 @@ var (
 
 	cancelErr     = context.Canceled
 	abortErr      = errors.New("aborted")
-	partExceedErr = errors.New("number of parts exceed data size")
+	partExceedErr = errors.New("The size of each or the number of parts exceeds the data size.")
 )
 
 func toErr(a any) error {
