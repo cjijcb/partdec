@@ -42,7 +42,7 @@ type (
 		BasePath  string
 		DstDirs   []string
 		PartCount int
-		PartSize  int
+		PartSize  int64
 		ReDL      map[FileState]bool
 		UI        func(*Download)
 		*IOMode
@@ -53,7 +53,7 @@ type (
 		Sources  DataCasters
 		Flow     *FlowControl
 		URI      string
-		DataSize int
+		DataSize int64
 		Type     DLType
 		Status   DLStatus
 		ReDL     map[FileState]bool
@@ -232,9 +232,9 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	opt.AlignPartCountSize(int(cl))
+	opt.AlignPartCountSize(cl)
 
-	if opt.PartCount > int(cl) || opt.PartSize > int(cl) {
+	if opt.PartCount > int(cl) || opt.PartSize > cl {
 		return nil, partExceedErr
 	}
 
@@ -251,7 +251,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		Files:    fios,
 		Sources:  make([]DataCaster, 2*MaxFetch),
 		URI:      opt.URI,
-		DataSize: int(cl),
+		DataSize: cl,
 		Type:     Online,
 		Status:   Pending,
 		ReDL:     opt.ReDL,
@@ -268,9 +268,9 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 	}
 	dataSize := info.Size()
 
-	opt.AlignPartCountSize(int(dataSize))
+	opt.AlignPartCountSize(dataSize)
 
-	if opt.PartCount > int(dataSize) || opt.PartSize > int(dataSize) {
+	if opt.PartCount > int(dataSize) || opt.PartSize > dataSize {
 		return nil, partExceedErr
 	}
 
@@ -287,7 +287,7 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 		Files:    fios,
 		Sources:  make([]DataCaster, 2*MaxFetch),
 		URI:      opt.URI,
-		DataSize: int(dataSize),
+		DataSize: dataSize,
 		Type:     Local,
 		Status:   Pending,
 		ReDL:     opt.ReDL,
@@ -315,7 +315,7 @@ func NewFileName(uri string, hdr http.Header) string {
 
 }
 
-func (opt *DLOptions) AlignPartCountSize(dataSize int) {
+func (opt *DLOptions) AlignPartCountSize(dataSize int64) {
 
 	if dataSize == UnknownSize {
 		opt.PartCount = 1
@@ -332,7 +332,7 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int) {
 	}
 
 	if opt.PartSize > 1 {
-		opt.PartCount = dataSize / opt.PartSize
+		opt.PartCount = int(dataSize / opt.PartSize)
 		if dataSize%opt.PartSize != 0 {
 			opt.PartCount++
 		}

@@ -14,7 +14,7 @@ type (
 	}
 
 	ByteRange struct {
-		Start, End, Offset int
+		Start, End, Offset int64
 		isFullRange        bool
 	}
 
@@ -121,7 +121,7 @@ func (fio *FileIO) DataCast(br ByteRange) (io.Reader, error) {
 
 	rangeEnd = rangeEnd - rangeStart + 1
 
-	r := io.NewSectionReader(fio, int64(rangeStart), int64(rangeEnd))
+	r := io.NewSectionReader(fio, rangeStart, rangeEnd)
 
 	return r, nil
 
@@ -184,6 +184,7 @@ func (fios FileIOs) SetInitState() error {
 		if err != nil {
 			return err
 		}
+
 		rs := fio.Scope.Start
 		re := fio.Scope.End
 
@@ -205,7 +206,7 @@ func (fios FileIOs) SetInitState() error {
 	return nil
 }
 
-func (fios FileIOs) SetByteRange(dataSize int, partSize int) error {
+func (fios FileIOs) SetByteRange(dataSize int64, partSize int64) error {
 
 	if len(fios) == 1 {
 		fios[0].Scope.isFullRange = true
@@ -232,17 +233,18 @@ func (fios FileIOs) SetByteRange(dataSize int, partSize int) error {
 	return nil
 }
 
-func (fios FileIOs) setByteRangeByPartCount(dataSize int) error {
+func (fios FileIOs) setByteRangeByPartCount(dataSize int64) error {
 
-	var rangeStart, rangeEnd int
+	var rangeStart, rangeEnd, offset, extraByte int64
 
 	partCount := len(fios)
-	basePartSize := dataSize / partCount
-	remainder := dataSize % partCount
+	basePartSize := dataSize / int64(partCount)
+	remainder := dataSize % int64(partCount)
 
-	for i, offset := 0, 0; i < partCount; i, offset = i+1, offset+basePartSize {
+	var i int
+	for i, offset = 0, 0; i < partCount; i, offset = i+1, offset+basePartSize {
 
-		extraByte := 0
+		extraByte = 0
 		if remainder > 0 {
 			extraByte = 1
 			remainder--
@@ -269,18 +271,19 @@ func (fios FileIOs) setByteRangeByPartCount(dataSize int) error {
 	return nil
 }
 
-func (fios FileIOs) setByteRangeByPartSize(dataSize int, partSize int) error {
+func (fios FileIOs) setByteRangeByPartSize(dataSize int64, partSize int64) error {
 
-	var rangeStart, rangeEnd int
+	var rangeStart, rangeEnd, offset int64
 
-	partCount := dataSize / partSize
+	partCount := int(dataSize / partSize)
 	remainder := dataSize % partSize
 
 	if remainder > 0 {
 		partCount++
 	}
 
-	for i, offset := 0, 0; i < partCount; i, offset = i+1, offset+partSize {
+	var i int
+	for i, offset = 0, 0; i < partCount; i, offset = i+1, offset+partSize {
 
 		if i+1 == partCount {
 			rangeStart = offset
@@ -343,13 +346,13 @@ func FileNameIndexer(maxIndex int) func(string) string {
 
 }
 
-func (fio *FileIO) Size() (int, error) {
+func (fio *FileIO) Size() (int64, error) {
 
 	info, err := os.Stat(fio.Path.Relative)
 	if err != nil {
 		return UnknownSize, nil
 	}
-	return int(info.Size()), nil
+	return info.Size(), nil
 
 }
 
