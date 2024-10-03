@@ -38,6 +38,8 @@ const (
 	Completed
 	Broken
 	Unknown
+	
+	FilePerm os.FileMode = 0644
 
 	UnknownSize   = -1
 	CurrentDir    = "."
@@ -88,7 +90,7 @@ func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 	dstDir = filepath.Clean(dstDir) + PathSeparator
 	relvPath := filepath.Clean(dstDir + basePath)
 
-	f, err := os.OpenFile(relvPath, oflag, 0640)
+	f, err := os.OpenFile(relvPath, oflag, FilePerm)
 
 	if err != nil {
 		return nil, err
@@ -102,7 +104,7 @@ func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 			Relative: relvPath,
 		},
 		Oflag:  oflag,
-		Perm:   0640,
+		Perm:   FilePerm,
 		isOpen: true,
 	}
 
