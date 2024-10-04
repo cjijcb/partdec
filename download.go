@@ -209,13 +209,16 @@ func NewDownload(opt DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	if d.ReDL != nil {
-		if err := d.Files.RenewByState(d.ReDL); err != nil {
-			return nil, err
-		}
+	if err := d.Files.RenewByState(d.ReDL); err != nil {
+		return nil, err
+	}
 
-		if err := d.Files.SetByteRange(d.DataSize, opt.PartSize); err != nil {
-			return nil, err
+	for _, v := range d.ReDL {
+		if v {
+			if err := d.Files.SetByteRange(d.DataSize, opt.PartSize); err != nil {
+				return nil, err
+			}
+			break
 		}
 	}
 
