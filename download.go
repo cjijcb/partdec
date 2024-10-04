@@ -189,11 +189,12 @@ func NewDownload(opt DLOptions) (*Download, error) {
 	var d *Download
 	var err error
 
-	if ok, _ := isFile(opt.URI); ok {
+	switch {
+	case isFile(opt.URI):
 		d, err = NewLocalDownload(&opt)
-	} else if ok, _ := isURL(opt.URI); ok {
+	case isURL(opt.URI):
 		d, err = NewOnlineDownload(&opt)
-	} else {
+	default:
 		return nil, fileURLErr
 	}
 
@@ -213,17 +214,17 @@ func NewDownload(opt DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	for _, v := range d.ReDL {
-		if v {
-			if err := d.Files.SetByteRange(d.DataSize, opt.PartSize); err != nil {
-				return nil, err
-			}
-			break
+	for _, b := range d.ReDL {
+		if !b {
+			continue
 		}
+		if err := d.Files.SetByteRange(d.DataSize, opt.PartSize); err != nil {
+			return nil, err
+		}
+		break
 	}
 
 	d.Flow = NewFlowControl(MaxFetch)
-
 	return d, nil
 
 }

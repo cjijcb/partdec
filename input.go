@@ -11,26 +11,26 @@ func getRawURL(a []string) string {
 	return a[len(a)-1]
 }
 
-func isFile(path string) (bool, error) {
+func isFile(path string) bool {
 	if info, err := os.Stat(filepath.Clean(path)); err == nil {
-		return info.Mode().IsRegular(), nil
+		return info.Mode().IsRegular()
 	} else {
-		return false, err
+		return false
 	}
 }
 
-func isDir(path string) (bool, error) {
+func isDir(path string) bool {
 	if info, err := os.Stat(filepath.Clean(path)); err == nil {
-		return info.Mode().IsDir(), nil
+		return info.Mode().IsDir()
 	} else {
-		return false, err
+		return false
 	}
 }
 
-func isURL(rawURL string) (bool, error) {
+func isURL(rawURL string) bool {
 	if u, err := url.Parse(rawURL); err == nil {
-		return (u.Scheme == "http" || u.Scheme == "https"), nil
+		return (u.Scheme == "http" || u.Scheme == "https")
 	} else {
-		return false, err
+		return false
 	}
 }
