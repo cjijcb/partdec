@@ -19,7 +19,7 @@ import (
 var (
 	errJoin = errors.Join
 	errIs   = errors.Is
-	errNew  = errors.New
+	errNew  = fmt.Errorf
 
 	cancelErr     = context.Canceled
 	abortErr      = errNew("aborted")

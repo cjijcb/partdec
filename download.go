@@ -195,7 +195,7 @@ func NewDownload(opt DLOptions) (*Download, error) {
 	case isURL(opt.URI):
 		d, err = NewOnlineDownload(&opt)
 	default:
-		return nil, fileURLErr
+		return nil, errNew("%s: %s\n", opt.URI, fileURLErr)
 	}
 
 	if err != nil {
