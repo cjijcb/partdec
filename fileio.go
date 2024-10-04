@@ -161,7 +161,7 @@ func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 			continue
 		}
 
-		if sm[fio.State] == true {
+		if sm != nil && sm[fio.State] == true {
 			if err := fio.Open(); err != nil {
 				return err
 			}
@@ -170,10 +170,11 @@ func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 				return err
 			}
 			fio.Close()
+			fio.State = New
 		}
 
-		fio.State = New
 	}
+
 	return nil
 
 }
