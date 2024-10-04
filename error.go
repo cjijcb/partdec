@@ -24,7 +24,7 @@ var (
 	cancelErr     = context.Canceled
 	abortErr      = errNew("aborted")
 	partExceedErr = errNew("The size of each or the number of parts exceeds the data size.")
-	fileURLErr    = errNew("invalid file or URL")
+	fileURLErr    = errNew("inaccessible file or invalid URL")
 	dltypeErr     = errNew("unknown download type")
 	exhaustErr    = errNew("cache resource exhausted")
 )
