@@ -17,6 +17,14 @@ type (
 	Textile struct {
 		*strings.Builder
 	}
+
+	FileReport struct {
+		FileIOs
+		FileSizeFuncs
+	}
+
+	SizeFunc      func() (int64, error)
+	FileSizeFuncs []SizeFunc
 )
 
 var (
@@ -30,30 +38,34 @@ func ShowProgress(d *Download) {
 	HandleInterrupts(d)
 
 	tl := &Textile{new(strings.Builder)}
+
+	fr := NewFileReport(d.Files, 500*time.Millisecond)
+
 	for d.Status == Pending || d.Status == Running {
 
-		s := d.Files.Progress(tl)
+		s := Progress(fr, tl)
 		fmt.Printf(s)
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
+
 	}
 
-	fmt.Printf(d.Files.Progress(tl))
+	fmt.Printf(Progress(fr, tl))
 
 }
 
-func (fios FileIOs) Progress(tl *Textile) string {
+func Progress(fr *FileReport, tl *Textile) string {
 	defer tl.Reset()
 
-	for _, fio := range fios {
-		size, _ := fio.Size()
-		sb := fio.Scope.Start
-		eb := fio.Scope.End
+	for i, fio := range fr.FileIOs {
+		size, _ := fr.FileSizeFuncs[i]()
+		rs := fio.Scope.Start
+		re := fio.Scope.End
 
 		fmt.Fprintf(tl,
 			"state: %d | %d / %d | %s\n",
 			fio.State,
 			size,
-			(eb - sb + 1),
+			(re - rs + 1),
 			fio.Path.Relative,
 		)
 	}
@@ -62,11 +74,46 @@ func (fios FileIOs) Progress(tl *Textile) string {
 
 }
 
-func HandleInterrupts(d *Download) {
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+func NewFileReport(fios FileIOs, precision time.Duration) *FileReport {
+
+	fSizeFuncs := make([]SizeFunc, len(fios))
+	for i, fio := range fios {
+		fSizeFuncs[i] = fio.TimedSizer(time.NewTicker(precision))
+	}
+
+	return &FileReport{
+		FileIOs:       fios,
+		FileSizeFuncs: fSizeFuncs,
+	}
+}
+
+func (fio *FileIO) TimedSizer(tkr *time.Ticker) SizeFunc {
+
+	var cache = new(int64)
+	var err error
+
+	return func() (int64, error) {
+
+		select {
+		case <-tkr.C:
+			*cache, err = fio.Size()
+			return *cache, err
+		default:
+			return *cache, err
+		}
+
+	}
+
+}
+
+func HandleInterrupts(d *Download) <-chan os.Signal {
+	sigCh := make(chan os.Signal)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		<-c
+		sig := <-sigCh
 		d.Cancel()
+		sigCh <- sig
 	}()
+
+	return sigCh
 }
