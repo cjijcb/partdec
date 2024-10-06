@@ -20,11 +20,9 @@ type (
 
 	FileReport struct {
 		FileIOs
-		FileSizeFuncs
+		BytesPerSecFunc func() int64
+		tkr             *time.Ticker
 	}
-
-	SizeFunc      func() (int64, error)
-	FileSizeFuncs []SizeFunc
 )
 
 var (
@@ -39,7 +37,8 @@ func ShowProgress(d *Download) {
 
 	tl := &Textile{new(strings.Builder)}
 
-	fr := NewFileReport(d.Files, 500*time.Millisecond)
+	fr := NewFileReport(d.Files)
+	defer fr.Flush()
 
 	for d.Status == Pending || d.Status == Running {
 
@@ -56,8 +55,8 @@ func ShowProgress(d *Download) {
 func Progress(fr *FileReport, tl *Textile) string {
 	defer tl.Reset()
 
-	for i, fio := range fr.FileIOs {
-		size, _ := fr.FileSizeFuncs[i]()
+	for _, fio := range fr.FileIOs {
+		size, _ := fio.Size()
 		rs := fio.Scope.Start
 		re := fio.Scope.End
 
@@ -70,36 +69,51 @@ func Progress(fr *FileReport, tl *Textile) string {
 		)
 	}
 
+	fmt.Fprintf(tl, "bps:%d\n", fr.BytesPerSecFunc())
+
 	return tl.String()
 
 }
 
-func NewFileReport(fios FileIOs, precision time.Duration) *FileReport {
+func NewFileReport(fios FileIOs) *FileReport {
 
-	fSizeFuncs := make([]SizeFunc, len(fios))
-	for i, fio := range fios {
-		fSizeFuncs[i] = fio.TimedSizer(time.NewTicker(precision))
-	}
+	bpsTicker := time.NewTicker(1 * time.Second)
 
 	return &FileReport{
-		FileIOs:       fios,
-		FileSizeFuncs: fSizeFuncs,
+		FileIOs:         fios,
+		BytesPerSecFunc: fios.BytesPerSec(bpsTicker),
+		tkr:             bpsTicker,
 	}
+
 }
 
-func (fio *FileIO) TimedSizer(tkr *time.Ticker) SizeFunc {
+func (fr *FileReport) Flush() {
+	fr.tkr.Stop()
+}
 
-	var cache = new(int64)
-	var err error
+func (fios FileIOs) BytesPerSec(tkr *time.Ticker) func() int64 {
 
-	return func() (int64, error) {
+	var cachedTotal, bps = new(int64), new(int64)
+
+	currentTotal := func() int64 {
+		var totalSize int64
+		for _, fio := range fios {
+			size, _ := fio.Size()
+			totalSize += size
+		}
+		return totalSize
+	}
+
+	return func() int64 {
 
 		select {
 		case <-tkr.C:
-			*cache, err = fio.Size()
-			return *cache, err
+			currentTotal := currentTotal()
+			*bps = currentTotal - *cachedTotal
+			*cachedTotal = currentTotal
+			return *bps
 		default:
-			return *cache, err
+			return *bps
 		}
 
 	}
@@ -117,3 +131,22 @@ func HandleInterrupts(d *Download) <-chan os.Signal {
 
 	return sigCh
 }
+
+//func (fio *FileIO) TimedSizer(tkr *time.Ticker) SizeFunc {
+//
+//	var cachedSize = new(int64)
+//	var err error
+//
+//	return func() (int64, error) {
+//
+//		select {
+//		case <-tkr.C:
+//			*cachedSize, err = fio.Size()
+//			return *cachedSize, err
+//		default:
+//			return *cachedSize, err
+//		}
+//
+//	}
+//
+//}

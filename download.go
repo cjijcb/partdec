@@ -76,7 +76,7 @@ const (
 	Local DLType = iota
 	Online
 
-	MaxFetch = 16
+	MaxFetch = 3
 )
 
 func (d *Download) Start() error {
