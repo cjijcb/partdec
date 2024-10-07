@@ -20,8 +20,8 @@ type (
 
 	FileReport struct {
 		FileIOs
-		BytesPerSecFunc func() int64
-		tkr             *time.Ticker
+		PercentBytesPerSecFunc func() (float32, int64)
+		tkr                    *time.Ticker
 	}
 )
 
@@ -37,7 +37,7 @@ func ShowProgress(d *Download) {
 
 	tl := &Textile{new(strings.Builder)}
 
-	fr := NewFileReport(d.Files)
+	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
 	for d.Status == Pending || d.Status == Running {
@@ -69,20 +69,22 @@ func Progress(fr *FileReport, tl *Textile) string {
 		)
 	}
 
-	fmt.Fprintf(tl, "bps:%d\n", fr.BytesPerSecFunc())
+	percentSec, bytesSec := fr.PercentBytesPerSecFunc()
+	fmt.Fprintf(tl, "bps:%d %.2f", bytesSec, percentSec)
+	tl.WriteString("%%\n")
 
 	return tl.String()
 
 }
 
-func NewFileReport(fios FileIOs) *FileReport {
+func NewFileReport(fios FileIOs, dataSize int64) *FileReport {
 
-	bpsTicker := time.NewTicker(1 * time.Second)
+	bpsTicker := time.NewTicker(time.Second)
 
 	return &FileReport{
-		FileIOs:         fios,
-		BytesPerSecFunc: fios.BytesPerSec(bpsTicker),
-		tkr:             bpsTicker,
+		FileIOs:                fios,
+		PercentBytesPerSecFunc: fios.PercentBytesPerSec(dataSize, bpsTicker),
+		tkr:                    bpsTicker,
 	}
 
 }
@@ -91,9 +93,9 @@ func (fr *FileReport) Flush() {
 	fr.tkr.Stop()
 }
 
-func (fios FileIOs) BytesPerSec(tkr *time.Ticker) func() int64 {
+func (fios FileIOs) PercentBytesPerSec(dataSize int64, tkr *time.Ticker) func() (float32, int64) {
 
-	var cachedTotal, bps = new(int64), new(int64)
+	var percentSec, bytesSec, cachedTotal = new(float32), new(int64), new(int64)
 
 	currentTotal := func() int64 {
 		var totalSize int64
@@ -104,16 +106,17 @@ func (fios FileIOs) BytesPerSec(tkr *time.Ticker) func() int64 {
 		return totalSize
 	}
 
-	return func() int64 {
+	return func() (float32, int64) {
 
 		select {
 		case <-tkr.C:
 			currentTotal := currentTotal()
-			*bps = currentTotal - *cachedTotal
+			*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
+			*bytesSec = currentTotal - *cachedTotal
 			*cachedTotal = currentTotal
-			return *bps
+			return *percentSec, *bytesSec
 		default:
-			return *bps
+			return *percentSec, *bytesSec
 		}
 
 	}
