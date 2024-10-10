@@ -18,10 +18,14 @@ type (
 		*strings.Builder
 	}
 
+	BytesPerSec   = int64
+	PercentPerSec = float32
+
 	FileReport struct {
 		FileIOs
-		PercentBytesPerSecFunc func() (float32, int64)
-		tkr                    *time.Ticker
+		ReportFunc func() (PercentPerSec, BytesPerSec)
+		tkr        *time.Ticker
+		startTime  time.Time
 	}
 )
 
@@ -69,9 +73,10 @@ func Progress(fr *FileReport, tl *Textile) string {
 		)
 	}
 
-	percentSec, bytesSec := fr.PercentBytesPerSecFunc()
-	fmt.Fprintf(tl, "bps:%d %.2f", bytesSec, percentSec)
-	tl.WriteString("%%\n")
+	percentSec, bytesSec := fr.ReportFunc()
+	fmt.Fprintf(tl, "bps:%d %9.2f", bytesSec, percentSec)
+	fmt.Fprint(tl, "%%")
+	fmt.Fprintf(tl, " %20s\n", fr.Elapsed())
 
 	return tl.String()
 
@@ -81,11 +86,15 @@ func NewFileReport(fios FileIOs, dataSize int64) *FileReport {
 
 	bpsTicker := time.NewTicker(time.Second)
 
-	return &FileReport{
-		FileIOs:                fios,
-		PercentBytesPerSecFunc: fios.PercentBytesPerSec(dataSize, bpsTicker),
-		tkr:                    bpsTicker,
+	fr := &FileReport{
+		FileIOs:   fios,
+		tkr:       bpsTicker,
+		startTime: time.Now(),
 	}
+
+	fr.ReportFunc = fr.Reporter(dataSize)
+
+	return fr
 
 }
 
@@ -93,23 +102,16 @@ func (fr *FileReport) Flush() {
 	fr.tkr.Stop()
 }
 
-func (fios FileIOs) PercentBytesPerSec(dataSize int64, tkr *time.Ticker) func() (float32, int64) {
+func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSec) {
 
 	var percentSec, bytesSec, cachedTotal = new(float32), new(int64), new(int64)
 
-	currentTotal := func() int64 {
-		var totalSize int64
-		for _, fio := range fios {
-			size, _ := fio.Size()
-			totalSize += size
-		}
-		return totalSize
-	}
+	currentTotal := fr.FileIOs.TotalSize
 
-	return func() (float32, int64) {
+	return func() (PercentPerSec, BytesPerSec) {
 
 		select {
-		case <-tkr.C:
+		case <-fr.tkr.C:
 			currentTotal := currentTotal()
 			*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
 			*bytesSec = currentTotal - *cachedTotal
@@ -121,6 +123,16 @@ func (fios FileIOs) PercentBytesPerSec(dataSize int64, tkr *time.Ticker) func() 
 
 	}
 
+}
+
+func (fr *FileReport) Elapsed() string {
+
+	elapsed := time.Since(fr.startTime)
+	hours := int(elapsed.Hours())
+	minutes := int(elapsed.Minutes()) % 60
+	seconds := int(elapsed.Seconds()) % 60
+
+	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
 }
 
 func HandleInterrupts(d *Download) <-chan os.Signal {

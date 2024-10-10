@@ -357,6 +357,18 @@ func (fio *FileIO) Size() (int64, error) {
 
 }
 
+func (fios FileIOs) TotalSize() int64 {
+
+	var totalSize, size int64
+
+	for _, fio := range fios {
+		size, _ = fio.Size()
+		totalSize += size
+	}
+	return totalSize
+
+}
+
 func (fio *FileIO) IsOpen() bool {
 	return fio.isOpen
 }
