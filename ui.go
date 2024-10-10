@@ -26,6 +26,7 @@ type (
 		ReportFunc func() (PercentPerSec, BytesPerSec)
 		tkr        *time.Ticker
 		startTime  time.Time
+		final      chan struct{}
 	}
 )
 
@@ -52,6 +53,7 @@ func ShowProgress(d *Download) {
 
 	}
 
+	close(fr.final)
 	fmt.Printf(Progress(fr, tl))
 
 }
@@ -84,12 +86,13 @@ func Progress(fr *FileReport, tl *Textile) string {
 
 func NewFileReport(fios FileIOs, dataSize int64) *FileReport {
 
-	bpsTicker := time.NewTicker(time.Second)
+	persec := time.NewTicker(time.Second)
 
 	fr := &FileReport{
 		FileIOs:   fios,
-		tkr:       bpsTicker,
+		tkr:       persec,
 		startTime: time.Now(),
+		final:     make(chan struct{}),
 	}
 
 	fr.ReportFunc = fr.Reporter(dataSize)
@@ -106,16 +109,20 @@ func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSe
 
 	var percentSec, bytesSec, cachedTotal = new(float32), new(int64), new(int64)
 
-	currentTotal := fr.FileIOs.TotalSize
-
+	update := func() {
+		currentTotal := fr.FileIOs.TotalSize()
+		*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
+		*bytesSec = currentTotal - *cachedTotal
+		*cachedTotal = currentTotal
+	}
 	return func() (PercentPerSec, BytesPerSec) {
 
 		select {
 		case <-fr.tkr.C:
-			currentTotal := currentTotal()
-			*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
-			*bytesSec = currentTotal - *cachedTotal
-			*cachedTotal = currentTotal
+			update()
+			return *percentSec, *bytesSec
+		case <-fr.final:
+			update()
 			return *percentSec, *bytesSec
 		default:
 			return *percentSec, *bytesSec
