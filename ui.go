@@ -65,18 +65,19 @@ func Progress(fr *FileReport, tl *Textile) string {
 		size, _ := fio.Size()
 		rs := fio.Scope.Start
 		re := fio.Scope.End
+		partSize := re - rs + 1
 
 		fmt.Fprintf(tl,
-			"state: %d | %d / %d | %s\n",
+			"state: %d | %s / %s | %s\n",
 			fio.State,
-			size,
-			(re - rs + 1),
+			ToEIC(size),
+			ToEIC(partSize),
 			fio.Path.Relative,
 		)
 	}
 
 	percentSec, bytesSec := fr.ReportFunc()
-	fmt.Fprintf(tl, "bps:%d %9.2f", bytesSec, percentSec)
+	fmt.Fprintf(tl, "%s/s %9.2f", ToEIC(bytesSec), percentSec)
 	fmt.Fprint(tl, "%%")
 	fmt.Fprintf(tl, " %20s\n", fr.Elapsed())
 
@@ -152,6 +153,19 @@ func HandleInterrupts(d *Download) <-chan os.Signal {
 	}()
 
 	return sigCh
+}
+
+func ToEIC(b int64) string {
+
+	switch {
+	case b < 1024:
+		return fmt.Sprintf("%dB", b)
+	case b >= 1024 && b < 1048576:
+		return fmt.Sprintf("%.2fKiB", float32(b)/1024)
+	default:
+		return fmt.Sprintf("%.2fMiB", float32(b)/1048576)
+	}
+
 }
 
 //func (fio *FileIO) TimedSizer(tkr *time.Ticker) SizeFunc {
