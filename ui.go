@@ -10,7 +10,10 @@ import (
 )
 
 const (
-	ESC uint32 = 27
+	ESC  uint32 = 27
+	Kibi        = 1024
+	Mebi        = 1024 * 1024
+	Gibi        = 1024 * 1024 * 1024
 )
 
 type (
@@ -158,12 +161,14 @@ func HandleInterrupts(d *Download) <-chan os.Signal {
 func ToEIC(b int64) string {
 
 	switch {
-	case b < 1024:
+	case b < Kibi:
 		return fmt.Sprintf("%dB", b)
-	case b >= 1024 && b < 1048576:
-		return fmt.Sprintf("%.2fKiB", float32(b)/1024)
+	case b >= Kibi && b < Mebi:
+		return fmt.Sprintf("%.2f KiB", float32(b)/Kibi)
+	case b >= Mebi && b < Gibi:
+		return fmt.Sprintf("%.2f MiB", float32(b)/Mebi)
 	default:
-		return fmt.Sprintf("%.2fMiB", float32(b)/1048576)
+		return fmt.Sprintf("%.2f GiB", float32(b)/Gibi)
 	}
 
 }
