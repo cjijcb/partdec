@@ -9,16 +9,10 @@ import (
 	"time"
 )
 
-const (
-	ESC  uint32 = 27
-	Kibi        = 1024
-	Mebi        = 1024 * 1024
-	Gibi        = 1024 * 1024 * 1024
-)
-
 type (
 	Textile struct {
 		*strings.Builder
+		LineCount int
 	}
 
 	BytesPerSec   = int64
@@ -33,8 +27,16 @@ type (
 	}
 )
 
+const (
+	ESC uint32 = 27
+
+	Kibi = 1024
+	Mebi = 1024 * 1024
+	Gibi = 1024 * 1024 * 1024
+)
+
 var (
-	clearLine = fmt.Sprintf("%c[%dA%c[2K", ESC, 1, ESC)
+	ClearLine = fmt.Sprintf("%c[%dA%c[2K", ESC, 1, ESC)
 )
 
 func ShowProgress(d *Download) {
@@ -43,16 +45,16 @@ func ShowProgress(d *Download) {
 
 	HandleInterrupts(d)
 
-	tl := &Textile{new(strings.Builder)}
+	tl := &Textile{new(strings.Builder), 0}
 
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
 	for d.Status == Pending || d.Status == Running {
 
-		s := Progress(fr, tl)
-		fmt.Printf(s)
-		time.Sleep(100 * time.Millisecond)
+		fmt.Printf(Progress(fr, tl))
+		time.Sleep(500 * time.Millisecond)
+		fmt.Printf(strings.Repeat(ClearLine, tl.LineCount))
 
 	}
 
@@ -64,6 +66,7 @@ func ShowProgress(d *Download) {
 func Progress(fr *FileReport, tl *Textile) string {
 	defer tl.Reset()
 
+	lineCount := 0
 	for _, fio := range fr.FileIOs {
 		size, _ := fio.Size()
 		rs := fio.Scope.Start
@@ -71,18 +74,22 @@ func Progress(fr *FileReport, tl *Textile) string {
 		partSize := re - rs + 1
 
 		fmt.Fprintf(tl,
-			"state: %d | %s / %s | %s\n",
+			"state: %d |%11s/%-11s| %s\n",
 			fio.State,
 			ToEIC(size),
 			ToEIC(partSize),
 			fio.Path.Relative,
 		)
+		lineCount++
 	}
 
 	percentSec, bytesSec := fr.ReportFunc()
-	fmt.Fprintf(tl, "%s/s %9.2f", ToEIC(bytesSec), percentSec)
-	fmt.Fprint(tl, "%%")
-	fmt.Fprintf(tl, " %20s\n", fr.Elapsed())
+
+	fmt.Fprintf(tl, "%6.2f", percentSec)
+	fmt.Fprintf(tl, "%s", "%%")
+	fmt.Fprintf(tl, "%24s/s %9s\n", ToEIC(bytesSec), fr.Elapsed())
+	lineCount++
+	tl.LineCount = lineCount
 
 	return tl.String()
 
