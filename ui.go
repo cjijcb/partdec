@@ -50,16 +50,19 @@ func ShowProgress(d *Download) {
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
+	clearToEnd := fmt.Sprintf("%c[0J", ESC)
 	for d.Status == Pending || d.Status == Running {
 
-		fmt.Printf(Progress(fr, tl))
-		time.Sleep(500 * time.Millisecond)
-		fmt.Printf(strings.Repeat(ClearLine, tl.LineCount))
+		fmt.Print(Progress(fr, tl))
+		upLine := fmt.Sprintf("%c[%dA", ESC, tl.LineCount)
+
+		time.Sleep(250 * time.Millisecond)
+		fmt.Print(upLine + clearToEnd)
 
 	}
 
 	close(fr.final)
-	fmt.Printf(Progress(fr, tl))
+	fmt.Print(Progress(fr, tl))
 
 }
 
@@ -85,8 +88,7 @@ func Progress(fr *FileReport, tl *Textile) string {
 
 	percentSec, bytesSec := fr.ReportFunc()
 
-	fmt.Fprintf(tl, "%6.2f", percentSec)
-	fmt.Fprintf(tl, "%s", "%%")
+	fmt.Fprintf(tl, "%6.2f%%", percentSec)
 	fmt.Fprintf(tl, "%24s/s %9s\n", ToEIC(bytesSec), fr.Elapsed())
 	lineCount++
 	tl.LineCount = lineCount
