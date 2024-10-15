@@ -33,6 +33,7 @@ const (
 	Kibi = 1024
 	Mebi = 1024 * 1024
 	Gibi = 1024 * 1024 * 1024
+	Tebi = 1024 * 1024 * 1024 * 1024
 )
 
 var (
@@ -56,7 +57,7 @@ func ShowProgress(d *Download) {
 		fmt.Print(Progress(fr, tl))
 		upLine := fmt.Sprintf("%c[%dA", ESC, tl.LineCount)
 
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 		fmt.Print(upLine)
 
 	}
@@ -176,8 +177,10 @@ func ToEIC(b int64) string {
 		return fmt.Sprintf("%.2f KiB", float32(b)/Kibi)
 	case b >= Mebi && b < Gibi:
 		return fmt.Sprintf("%.2f MiB", float32(b)/Mebi)
-	default:
+	case b >= Gibi && b < Tebi:
 		return fmt.Sprintf("%.2f GiB", float32(b)/Gibi)
+	default:
+		return fmt.Sprintf("%.2f TiB", float32(b)/Tebi)
 	}
 
 }
