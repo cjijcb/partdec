@@ -158,11 +158,13 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 	defer fio.Close()
 
 	if err := fio.Open(); err != nil {
+		fio.State = Broken
 		errCh <- err
 		return
 	}
 
 	if _, err := fio.Seek(0, io.SeekEnd); err != nil {
+		fio.State = Broken
 		errCh <- err
 		return
 	}
@@ -176,6 +178,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 
 	_, err = fio.ReadFrom(newCtxReader(ctx, r))
 	if err != nil {
+		fio.State = Broken
 		errCh <- err
 		return
 	}
