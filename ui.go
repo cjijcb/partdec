@@ -90,7 +90,7 @@ func Progress(fr *FileReport, tl *Textile) string {
 	percentSec, bytesSec := fr.ReportFunc()
 
 	fmt.Fprintf(tl, "%6.2f%%", percentSec)
-	fmt.Fprintf(tl, "%24s/s %9s\n", ToEIC(bytesSec), fr.Elapsed())
+	fmt.Fprintf(tl, "%14s/s %19s\n", ToEIC(bytesSec), fr.Elapsed())
 	lineCount++
 	tl.LineCount = lineCount
 
@@ -172,7 +172,7 @@ func ToEIC(b int64) string {
 
 	switch {
 	case b < Kibi:
-		return fmt.Sprintf("%dB", b)
+		return fmt.Sprintf("%d B", b)
 	case b >= Kibi && b < Mebi:
 		return fmt.Sprintf("%.2f KiB", float32(b)/Kibi)
 	case b >= Mebi && b < Gibi:
