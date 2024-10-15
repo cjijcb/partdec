@@ -180,6 +180,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 		return
 	}
 
+	fio.State = Completed
 	errCh <- nil
 
 }
