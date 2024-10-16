@@ -178,7 +178,6 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 
 	_, err = fio.ReadFrom(newCtxReader(ctx, r))
 	if err != nil {
-		fio.State = Broken
 		errCh <- err
 		return
 	}

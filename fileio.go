@@ -347,6 +347,23 @@ func FileNameIndexer(maxIndex int) func(string) string {
 
 }
 
+func (s FileState) String() string {
+
+	switch s {
+	case New:
+		return "new"
+	case Resume:
+		return "resume"
+	case Completed:
+		return "completed"
+	case Broken:
+		return "broken"
+	default:
+		return "unknown"
+	}
+
+}
+
 func (fio *FileIO) Size() (int64, error) {
 
 	info, err := os.Stat(fio.Path.Relative)
