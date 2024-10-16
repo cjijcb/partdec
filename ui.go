@@ -78,8 +78,8 @@ func Progress(fr *FileReport, tl *Textile) string {
 		partSize := re - rs + 1
 
 		fmt.Fprintf(tl,
-			"state: %d |%11s/%-11s| %-35s\n",
-			fio.State,
+			"%-9s->%11s/%-11s| %-35s\n",
+			fio.State.String(),
 			ToEIC(size),
 			ToEIC(partSize),
 			fio.Path.Relative,
@@ -90,7 +90,7 @@ func Progress(fr *FileReport, tl *Textile) string {
 	percentSec, bytesSec := fr.ReportFunc()
 
 	fmt.Fprintf(tl, "%6.2f%%", percentSec)
-	fmt.Fprintf(tl, "%14s/s %19s\n", ToEIC(bytesSec), fr.Elapsed())
+	fmt.Fprintf(tl, "%15s/s %19s\n", ToEIC(bytesSec), fr.Elapsed())
 	lineCount++
 	tl.LineCount = lineCount
 
