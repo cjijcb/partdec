@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"golang.org/x/term"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 )
 
 type (
@@ -21,9 +23,9 @@ type (
 	FileReport struct {
 		FileIOs
 		ReportFunc func() (PercentPerSec, BytesPerSec)
+		UpdateCh   chan struct{}
 		tkr        *time.Ticker
 		startTime  time.Time
-		final      chan struct{}
 	}
 )
 
@@ -51,7 +53,6 @@ func ShowProgress(d *Download) {
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
-	//clearToEnd := fmt.Sprintf("%c[0J", ESC)
 	for d.Status == Pending || d.Status == Running {
 
 		fmt.Print(Progress(fr, tl))
@@ -62,7 +63,7 @@ func ShowProgress(d *Download) {
 
 	}
 
-	close(fr.final)
+	close(fr.UpdateCh)
 	fmt.Print(Progress(fr, tl))
 
 }
@@ -70,27 +71,41 @@ func ShowProgress(d *Download) {
 func Progress(fr *FileReport, tl *Textile) string {
 	defer tl.Reset()
 
+	termWidth := TermWidth()
 	lineCount := 0
 	for _, fio := range fr.FileIOs {
 		size, _ := fio.Size()
-		rs := fio.Scope.Start
-		re := fio.Scope.End
-		partSize := re - rs + 1
+		partSize := fio.Scope.End - fio.Scope.Start + 1
+		path := fio.Path.Relative
+		pad := 0
+
+		runeCount := utf8.RuneCountInString(path) + 36 //(%-9s->%11s/%-11s| ) = 36 char
+		if termWidth >= runeCount {
+			pad = termWidth - runeCount
+		} else if termWidth > 0 {
+			lineCount += runeCount / termWidth
+		}
 
 		fmt.Fprintf(tl,
-			"%-9s->%11s/%-11s| %-35s\n",
+			"%-9s->%11s/%-11s| %-*s\n",
 			fio.State.String(),
 			ToEIC(size),
 			ToEIC(partSize),
-			fio.Path.Relative,
+			pad,
+			path,
 		)
+
 		lineCount++
 	}
 
 	percentSec, bytesSec := fr.ReportFunc()
 
-	fmt.Fprintf(tl, "%6.2f%%", percentSec)
-	fmt.Fprintf(tl, "%15s/s %19s\n", ToEIC(bytesSec), fr.Elapsed())
+	fmt.Fprintf(tl, "%6.2f%% %15s/s %19s\n",
+		percentSec,
+		ToEIC(bytesSec),
+		fr.Elapsed(),
+	)
+
 	lineCount++
 	tl.LineCount = lineCount
 
@@ -104,9 +119,9 @@ func NewFileReport(fios FileIOs, dataSize int64) *FileReport {
 
 	fr := &FileReport{
 		FileIOs:   fios,
+		UpdateCh:  make(chan struct{}, 1),
 		tkr:       persec,
 		startTime: time.Now(),
-		final:     make(chan struct{}),
 	}
 
 	fr.ReportFunc = fr.Reporter(dataSize)
@@ -135,7 +150,7 @@ func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSe
 		case <-fr.tkr.C:
 			update()
 			return *percentSec, *bytesSec
-		case <-fr.final:
+		case <-fr.UpdateCh:
 			update()
 			return *percentSec, *bytesSec
 		default:
@@ -183,6 +198,11 @@ func ToEIC(b int64) string {
 		return fmt.Sprintf("%.2f TiB", float32(b)/Tebi)
 	}
 
+}
+
+func TermWidth() int {
+	width, _, _ := term.GetSize(int(os.Stdin.Fd()))
+	return width
 }
 
 //func (fio *FileIO) TimedSizer(tkr *time.Ticker) SizeFunc {
