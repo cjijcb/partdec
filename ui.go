@@ -30,7 +30,9 @@ type (
 )
 
 const (
-	ESC uint32 = 27
+	ESC rune = 27
+
+	clearToEnd = string(ESC) + "[0J"
 
 	Kibi = 1024
 	Mebi = 1024 * 1024
@@ -54,7 +56,6 @@ func ShowProgress(d *Download) {
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
-	clearToEnd := fmt.Sprintf("%c[0J", ESC)
 	for d.Status == Pending || d.Status == Running {
 
 		fmt.Print(Progress(fr, tl))
@@ -67,7 +68,6 @@ func ShowProgress(d *Download) {
 
 		time.Sleep(150 * time.Millisecond)
 		fmt.Print(upLine)
-
 	}
 
 	close(fr.UpdateCh)
