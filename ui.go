@@ -14,7 +14,7 @@ import (
 type (
 	Textile struct {
 		*strings.Builder
-		LineCount int
+		Height, Width int
 	}
 
 	BytesPerSec   = int64
@@ -48,15 +48,22 @@ func ShowProgress(d *Download) {
 
 	HandleInterrupts(d)
 
-	tl := &Textile{new(strings.Builder), 0}
+	baseWidth := TermWidth()
+	tl := &Textile{new(strings.Builder), 0, baseWidth}
 
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
+	clearToEnd := fmt.Sprintf("%c[0J", ESC)
 	for d.Status == Pending || d.Status == Running {
 
 		fmt.Print(Progress(fr, tl))
-		upLine := fmt.Sprintf("%c[%dA", ESC, tl.LineCount)
+		upLine := fmt.Sprintf("%c[%dF", ESC, tl.Height)
+
+		if baseWidth != tl.Width {
+			baseWidth = tl.Width
+			upLine += clearToEnd
+		}
 
 		time.Sleep(150 * time.Millisecond)
 		fmt.Print(upLine)
@@ -79,6 +86,7 @@ func Progress(fr *FileReport, tl *Textile) string {
 		path := fio.Path.Relative
 		pad := 0
 
+		lineCount++
 		runeCount := utf8.RuneCountInString(path) + 36 //(%-9s->%11s/%-11s| ) = 36 char
 		if termWidth >= runeCount {
 			pad = termWidth - runeCount
@@ -94,8 +102,6 @@ func Progress(fr *FileReport, tl *Textile) string {
 			pad,
 			path,
 		)
-
-		lineCount++
 	}
 
 	percentSec, bytesSec := fr.ReportFunc()
@@ -107,7 +113,8 @@ func Progress(fr *FileReport, tl *Textile) string {
 	)
 
 	lineCount++
-	tl.LineCount = lineCount
+	tl.Height = lineCount
+	tl.Width = termWidth
 
 	return tl.String()
 
