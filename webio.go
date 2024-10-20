@@ -44,7 +44,7 @@ func NewReq(method string, rawURL string) (*http.Request, error) {
 
 func NewClient() *http.Client {
 	tr := &http.Transport{
-		MaxIdleConns: 0,
+		MaxIdleConnsPerHost: MaxFetch,
 	}
 	ct := &http.Client{Transport: tr}
 	return ct
