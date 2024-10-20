@@ -33,6 +33,8 @@ const (
 	ESC rune = 27
 
 	clearToEnd = string(ESC) + "[0J"
+	hideCursor = string(ESC) + "[?25l"
+	showCursor = string(ESC) + "[?25h"
 
 	Kibi = 1024
 	Mebi = 1024 * 1024
@@ -41,14 +43,15 @@ const (
 )
 
 var (
-	ClearLine = fmt.Sprintf("%c[%dA%c[2K", ESC, 1, ESC)
+	upLine = func(n int) string { return fmt.Sprintf("%c[%dF", ESC, n) }
 )
 
 func ShowProgress(d *Download) {
 	defer d.Flow.WG.Done()
 	defer d.Cancel()
+	defer fmt.Print(showCursor)
 
-	HandleInterrupts(d)
+	interrSig := Interrupt()
 
 	baseWidth := TermWidth()
 	tl := &Textile{new(strings.Builder), 0, baseWidth}
@@ -56,18 +59,25 @@ func ShowProgress(d *Download) {
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
+	fmt.Print(hideCursor)
+for_select:
 	for d.Status == Pending || d.Status == Running {
 
-		fmt.Print(Progress(fr, tl))
-		upLine := fmt.Sprintf("%c[%dF", ESC, tl.Height)
-
-		if baseWidth != tl.Width {
-			baseWidth = tl.Width
-			upLine += clearToEnd
+		select {
+		case <-interrSig:
+			d.Cancel()
+			break for_select
+		default:
+			fmt.Print(Progress(fr, tl))
 		}
 
+		resetDisplay := upLine(tl.Height)
+		if baseWidth != tl.Width {
+			baseWidth = tl.Width
+			resetDisplay += clearToEnd
+		}
 		time.Sleep(150 * time.Millisecond)
-		fmt.Print(upLine)
+		fmt.Print(resetDisplay)
 	}
 
 	close(fr.UpdateCh)
@@ -178,12 +188,11 @@ func (fr *FileReport) Elapsed() string {
 	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
 }
 
-func HandleInterrupts(d *Download) <-chan os.Signal {
+func Interrupt() <-chan os.Signal {
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		sig := <-sigCh
-		d.Cancel()
 		sigCh <- sig
 	}()
 
