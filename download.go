@@ -128,7 +128,7 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 	for _, fio := range d.Files {
 		dc, err := gendc()
 		if err != nil {
-			errCh <- errJoin(err, abortErr)
+			errCh <- errJoin(err, AbortErr)
 			return
 		}
 
@@ -179,7 +179,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 	_, err = fio.ReadFrom(newCtxReader(ctx, r))
 	if err != nil {
 		if errIs(err, context.Canceled) {
-			errCh <- cancelErr
+			errCh <- CancelErr
 		} else {
 			errCh <- err
 			fio.State = Broken
@@ -203,7 +203,7 @@ func NewDownload(opt DLOptions) (*Download, error) {
 	case isURL(opt.URI):
 		d, err = NewOnlineDownload(&opt)
 	default:
-		return nil, errNew("%s: %s", opt.URI, fileURLErr)
+		return nil, errNew("%s: %s", opt.URI, FileURLErr)
 	}
 
 	if err != nil {
@@ -247,7 +247,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 	opt.AlignPartCountSize(cl)
 
 	if opt.PartCount > int(cl) || opt.PartSize > cl {
-		return nil, partExceedErr
+		return nil, PartExceedErr
 	}
 
 	if opt.BasePath == "" {
@@ -283,7 +283,7 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 	opt.AlignPartCountSize(dataSize)
 
 	if opt.PartCount > int(dataSize) || opt.PartSize > dataSize {
-		return nil, partExceedErr
+		return nil, PartExceedErr
 	}
 
 	if opt.BasePath == "" {
@@ -386,7 +386,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 		gendc = NewWebDataCaster
 	default:
 		gendc = func(string, *IOMode) (DataCaster, error) {
-			return nil, dltypeErr
+			return nil, DLTypeErr
 		}
 	}
 
@@ -405,7 +405,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 				return dcs[i], nil
 			}
 		}
-		return nil, exhaustErr
+		return nil, ExhaustErr
 	}
 
 }

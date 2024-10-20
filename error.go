@@ -20,12 +20,12 @@ var (
 	errIs   = errors.Is
 	errNew  = fmt.Errorf
 
-	cancelErr     = errNew("canceled") //context.Canceled
-	abortErr      = errNew("aborted")
-	partExceedErr = errNew("The size of each or the number of parts exceeds the data size.")
-	fileURLErr    = errNew("inaccessible file or invalid URL")
-	dltypeErr     = errNew("unknown download type")
-	exhaustErr    = errNew("cache resource exhausted")
+	CancelErr     = errNew("canceled") //context.Canceled
+	AbortErr      = errNew("aborted")
+	PartExceedErr = errNew("The size of each or the number of parts exceeds the data size.")
+	FileURLErr    = errNew("inaccessible file or invalid URL")
+	DLTypeErr     = errNew("unknown download type")
+	ExhaustErr    = errNew("cache resource exhausted")
 )
 
 func toErr(a any) error {
@@ -46,7 +46,7 @@ func ErrCatch(errCh chan error, maxErrCount int) error {
 
 		if catchedErr != nil {
 			err = errors.Join(err, catchedErr)
-			if errIs(catchedErr, cancelErr) || errIs(catchedErr, abortErr) {
+			if errIs(catchedErr, CancelErr) || errIs(catchedErr, AbortErr) {
 				break
 			}
 		}
