@@ -12,8 +12,8 @@ func main() {
 
 	partCount := 8
 	partSize := -1 //1747626
-	//uri := "http://ipv4.download.thinkbroadband.com/5MB.zip"
-	uri := "http://ipv4.download.thinkbroadband.com/200MB.zip"
+	uri := "http://ipv4.download.thinkbroadband.com/5MB.zip"
+	//uri := "http://ipv4.download.thinkbroadband.com/200MB.zip"
 	//uri := "trusrc.dat"
 	//	uri := "/invalid/path"
 	dstDirs := []string{"dir1/", "197ad18ec5a69ad463ab0cbee11f410d1088fc00f9054b0ee466f154a8d4f7c9"} // "dir2/"}

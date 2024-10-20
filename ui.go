@@ -49,9 +49,8 @@ var (
 func ShowProgress(d *Download) {
 	defer d.Flow.WG.Done()
 	defer d.Cancel()
-	defer fmt.Print(showCursor)
 
-	interrSig := Interrupt()
+	sig, interrSig := os.Signal(nil), Interrupt()
 
 	baseWidth := TermWidth()
 	tl := &Textile{new(strings.Builder), 0, baseWidth}
@@ -60,15 +59,17 @@ func ShowProgress(d *Download) {
 	defer fr.Flush()
 
 	fmt.Print(hideCursor)
-for_select:
 	for d.Status == Pending || d.Status == Running {
 
 		select {
-		case <-interrSig:
+		case sig = <-interrSig:
 			d.Cancel()
-			break for_select
 		default:
-			fmt.Print(Progress(fr, tl))
+			fmt.Print(tl.Progress(fr))
+		}
+
+		if sig != nil {
+			break
 		}
 
 		resetDisplay := upLine(tl.Height)
@@ -81,11 +82,11 @@ for_select:
 	}
 
 	close(fr.UpdateCh)
-	fmt.Print(Progress(fr, tl))
+	fmt.Print(tl.Progress(fr) + showCursor)
 
 }
 
-func Progress(fr *FileReport, tl *Textile) string {
+func (tl *Textile) Progress(fr *FileReport) string {
 	defer tl.Reset()
 
 	termWidth := TermWidth()
@@ -116,7 +117,7 @@ func Progress(fr *FileReport, tl *Textile) string {
 
 	percentSec, bytesSec := fr.ReportFunc()
 
-	fmt.Fprintf(tl, "%6.2f%% %15s/s %19s\n",
+	fmt.Fprintf(tl, "%6.2f%% %14s/s %19s\n",
 		percentSec,
 		ToEIC(bytesSec),
 		fr.Elapsed(),
