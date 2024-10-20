@@ -65,7 +65,7 @@ func ShowProgress(d *Download) {
 		case sig = <-interrSig:
 			d.Cancel()
 		default:
-			fmt.Print(tl.Progress(fr))
+			fmt.Print(tl.ShowReport(fr))
 		}
 
 		if sig != nil {
@@ -82,11 +82,11 @@ func ShowProgress(d *Download) {
 	}
 
 	close(fr.UpdateCh)
-	fmt.Print(tl.Progress(fr) + showCursor)
+	fmt.Print(tl.ShowReport(fr) + showCursor)
 
 }
 
-func (tl *Textile) Progress(fr *FileReport) string {
+func (tl *Textile) ShowReport(fr *FileReport) string {
 	defer tl.Reset()
 
 	termWidth := TermWidth()

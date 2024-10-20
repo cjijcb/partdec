@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -21,7 +20,7 @@ var (
 	errIs   = errors.Is
 	errNew  = fmt.Errorf
 
-	cancelErr     = context.Canceled
+	cancelErr     = errNew("canceled") //context.Canceled
 	abortErr      = errNew("aborted")
 	partExceedErr = errNew("The size of each or the number of parts exceeds the data size.")
 	fileURLErr    = errNew("inaccessible file or invalid URL")
