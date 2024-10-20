@@ -19,10 +19,6 @@ type (
 	}
 )
 
-const (
-	RequestTimeout = 900 * time.Second
-)
-
 func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
 	wbio := &WebIO{
 		Client:  ct,
@@ -123,9 +119,9 @@ func BuildRangeHeader(br ByteRange) string {
 
 }
 
-func GetHeaders(rawURL string) (http.Header, int64, error) {
+func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
 
-	ct := &http.Client{Timeout: RequestTimeout}
+	ct := &http.Client{Timeout: to}
 
 	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
 

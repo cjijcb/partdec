@@ -239,7 +239,7 @@ func NewDownload(opt DLOptions) (*Download, error) {
 
 func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
-	hdr, cl, err := GetHeaders(opt.URI)
+	hdr, cl, err := GetHeaders(opt.URI, opt.IOMode.Timeout)
 	if err != nil {
 		return nil, err
 	}
