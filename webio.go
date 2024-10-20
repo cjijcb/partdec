@@ -62,7 +62,7 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
 	}
 
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
-		return nil, errNew(resp.Status)
+		return nil, NewErr(resp.Status)
 	}
 
 	wbio.Body = resp.Body

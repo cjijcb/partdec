@@ -406,7 +406,7 @@ func (fios FileIOs) Close() error {
 	var err error
 	for _, fio := range fios {
 		if fio != nil && fio.isOpen {
-			err = errJoin(err, fio.Close())
+			err = JoinErr(err, fio.Close())
 		}
 	}
 	return err

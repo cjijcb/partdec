@@ -82,7 +82,7 @@ const (
 func (d *Download) Start() error {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println(errJoin(toErr(r), d.Files.Close(), d.Sources.Close()))
+			fmt.Println(JoinErr(ToErr(r), d.Files.Close(), d.Sources.Close()))
 			d.Status = Stopped
 		}
 	}()
@@ -105,21 +105,21 @@ func (d *Download) Start() error {
 	d.Flow.WG.Add(1)
 	go d.Fetch(ctx, errCh)
 
-	if fetchErr = ErrCatch(errCh, partCount); fetchErr != nil {
+	if fetchErr = CatchErr(errCh, partCount); fetchErr != nil {
 		d.Cancel()
 	}
 	d.Status = Stopping
 
 	d.Flow.WG.Wait()
 	d.Status = Stopped
-	return errJoin(fetchErr, d.Files.Close(), d.Sources.Close())
+	return JoinErr(fetchErr, d.Files.Close(), d.Sources.Close())
 }
 
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 	defer func() {
 		d.Flow.WG.Done()
 		if r := recover(); r != nil {
-			errCh <- toErr(r)
+			errCh <- ToErr(r)
 		}
 	}()
 
@@ -128,7 +128,7 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 	for _, fio := range d.Files {
 		dc, err := gendc()
 		if err != nil {
-			errCh <- errJoin(err, AbortErr)
+			errCh <- JoinErr(err, ErrAbort)
 			return
 		}
 
@@ -149,7 +149,7 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 		fc.WG.Done()
 		fc.Release(fc.Limiter)
 		if r := recover(); r != nil {
-			errCh <- toErr(r)
+			errCh <- ToErr(r)
 		}
 	}()
 
@@ -178,8 +178,8 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 
 	_, err = fio.ReadFrom(newCtxReader(ctx, r))
 	if err != nil {
-		if errIs(err, context.Canceled) {
-			errCh <- CancelErr
+		if IsErr(err, context.Canceled) {
+			errCh <- ErrCancel
 		} else {
 			errCh <- err
 			fio.State = Broken
@@ -203,7 +203,7 @@ func NewDownload(opt DLOptions) (*Download, error) {
 	case isURL(opt.URI):
 		d, err = NewOnlineDownload(&opt)
 	default:
-		return nil, errNew("%s: %s", opt.URI, FileURLErr)
+		return nil, NewErr("%s: %s", opt.URI, ErrFileURL)
 	}
 
 	if err != nil {
@@ -247,7 +247,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 	opt.AlignPartCountSize(cl)
 
 	if opt.PartCount > int(cl) || opt.PartSize > cl {
-		return nil, PartExceedErr
+		return nil, ErrPartExceed
 	}
 
 	if opt.BasePath == "" {
@@ -283,7 +283,7 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 	opt.AlignPartCountSize(dataSize)
 
 	if opt.PartCount > int(dataSize) || opt.PartSize > dataSize {
-		return nil, PartExceedErr
+		return nil, ErrPartExceed
 	}
 
 	if opt.BasePath == "" {
@@ -386,7 +386,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 		gendc = NewWebDataCaster
 	default:
 		gendc = func(string, *IOMode) (DataCaster, error) {
-			return nil, DLTypeErr
+			return nil, ErrDLType
 		}
 	}
 
@@ -405,7 +405,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 				return dcs[i], nil
 			}
 		}
-		return nil, ExhaustErr
+		return nil, ErrExhaust
 	}
 
 }
@@ -415,7 +415,7 @@ func (dcs DataCasters) Close() error {
 	var err error
 	for _, dc := range dcs {
 		if dc != nil && dc.IsOpen() {
-			err = errJoin(err, dc.Close())
+			err = JoinErr(err, dc.Close())
 		}
 	}
 	return err
