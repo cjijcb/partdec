@@ -125,7 +125,7 @@ func BuildRangeHeader(br ByteRange) string {
 
 func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
 
-	ct := &http.Client{Timeout: to}
+	ct := &http.Client{Transport: SharedTransport, Timeout: to}
 
 	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
 
