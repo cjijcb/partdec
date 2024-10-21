@@ -19,6 +19,10 @@ type (
 	}
 )
 
+const (
+	UserAgent = "partdec/1.0.0"
+)
+
 var (
 	SharedTransport = &http.Transport{
 		MaxIdleConnsPerHost: MaxFetch,
@@ -44,7 +48,7 @@ func NewReq(method string, rawURL string) (*http.Request, error) {
 	req.ProtoMajor = 1
 	req.ProtoMinor = 1
 	req.Header.Set("Accept", "*/*")
-	req.Header.Set("User-Agent", "fssn/1.0.0")
+	req.Header.Set("User-Agent", UserAgent)
 	return req, nil
 }
 
