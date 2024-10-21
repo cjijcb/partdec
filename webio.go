@@ -19,6 +19,12 @@ type (
 	}
 )
 
+var (
+	SharedTransport = &http.Transport{
+		MaxIdleConnsPerHost: MaxFetch,
+	}
+)
+
 func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
 	wbio := &WebIO{
 		Client:  ct,
@@ -43,10 +49,8 @@ func NewReq(method string, rawURL string) (*http.Request, error) {
 }
 
 func NewClient() *http.Client {
-	tr := &http.Transport{
-		MaxIdleConnsPerHost: MaxFetch,
-	}
-	ct := &http.Client{Transport: tr}
+
+	ct := &http.Client{Transport: SharedTransport}
 	return ct
 }
 
