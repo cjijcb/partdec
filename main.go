@@ -16,7 +16,7 @@ func main() {
 	uri := "http://ipv4.download.thinkbroadband.com/200MB.zip"
 	//uri := "trusrc.dat"
 	//	uri := "/invalid/path"
-	dstDirs := []string{"dir1/", "197ad18ec5a69ad463ab0cbee11f410d1088fc00f9054b0ee466f154a8d4f7c9"} // "dir2/"}
+	dstDirs := []string{"dir1/", "dir2/"}
 
 	hdr := make(http.Header)
 	hdr.Add("Range", "bytes=0-127")
