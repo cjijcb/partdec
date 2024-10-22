@@ -44,22 +44,17 @@ func NewReq(method string, rawURL string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Proto = "http/1.1"
-	req.ProtoMajor = 1
-	req.ProtoMinor = 1
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", UserAgent)
 	return req, nil
 }
 
 func NewClient() *http.Client {
-
 	ct := &http.Client{Transport: SharedTransport}
 	return ct
 }
 
 func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
-
 	if !br.isFullRange {
 		wbio.Request.Header.Set("Range", BuildRangeHeader(br))
 	}
@@ -79,7 +74,6 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
 }
 
 func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
-
 	req, err := NewReq(http.MethodGet, rawURL)
 	if err != nil {
 		return nil, err
@@ -100,7 +94,6 @@ func (wbio *WebIO) IsOpen() bool {
 }
 
 func (wbio *WebIO) Close() error {
-
 	if wbio.Body != nil {
 		if err := wbio.Body.Close(); err != nil {
 			return err
@@ -111,7 +104,6 @@ func (wbio *WebIO) Close() error {
 }
 
 func BuildRangeHeader(br ByteRange) string {
-
 	if br.Start == UnknownSize || br.End == UnknownSize {
 		return "none"
 	}
@@ -128,7 +120,6 @@ func BuildRangeHeader(br ByteRange) string {
 }
 
 func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
-
 	ct := &http.Client{Transport: SharedTransport, Timeout: to}
 
 	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
@@ -148,7 +139,6 @@ func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
 }
 
 func newFileNameFromHeader(hdr http.Header) string {
-
 	if hdr == nil {
 		return ""
 	}
@@ -172,7 +162,6 @@ func newFileNameFromHeader(hdr http.Header) string {
 }
 
 func newFileNameFromURL(rawURL string) string {
-
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return ""
