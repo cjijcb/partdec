@@ -22,7 +22,7 @@ var (
 	ErrOnFlags = &ErrBuilder{new(strings.Builder)}
 )
 
-func main() {
+func maintest() {
 
 	flag.CommandLine.SetOutput(ErrOnFlags)
 
@@ -35,6 +35,7 @@ func main() {
 		flag.PrintDefaults()
 		fmt.Fprint(os.Stderr, ErrOnFlags.String())
 	}
+
 	flag.Parse()
 
 	fmt.Println("part value is: ", PartFlag)
