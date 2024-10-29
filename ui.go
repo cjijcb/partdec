@@ -117,9 +117,9 @@ func (tl *Textile) ShowReport(fr *FileReport) string {
 
 	percentSec, bytesSec := fr.ReportFunc()
 
-	fmt.Fprintf(tl, "%6.2f%% %14s/s %19s\n",
+	fmt.Fprintf(tl, "%6.2f%% %14s%-13s %-10s\n",
 		percentSec,
-		ToEIC(bytesSec),
+		ToEIC(bytesSec), "/s",
 		fr.Elapsed(),
 	)
 
@@ -179,14 +179,34 @@ func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSe
 
 }
 
-func (fr *FileReport) Elapsed() string {
+//func (fr *FileReport) Elapsed() string {
+//
+//	elapsed := time.Since(fr.startTime)
+//	hours := int(elapsed.Hours())
+//	minutes := int(elapsed.Minutes()) % 60
+//	seconds := int(elapsed.Seconds()) % 60
+//
+//	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
+//}
 
+func (fr *FileReport) Elapsed() string {
 	elapsed := time.Since(fr.startTime)
 	hours := int(elapsed.Hours())
 	minutes := int(elapsed.Minutes()) % 60
 	seconds := int(elapsed.Seconds()) % 60
 
-	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
+	result := ""
+	if hours > 0 {
+		result += fmt.Sprintf("%dh", hours)
+	}
+	if minutes > 0 {
+		result += fmt.Sprintf("%dm", minutes)
+	}
+	if seconds > 0 || result == "" {
+		result += fmt.Sprintf("%ds", seconds)
+	}
+
+	return result
 }
 
 func Interrupt() <-chan os.Signal {
