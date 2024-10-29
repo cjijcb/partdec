@@ -179,34 +179,25 @@ func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSe
 
 }
 
-//func (fr *FileReport) Elapsed() string {
-//
-//	elapsed := time.Since(fr.startTime)
-//	hours := int(elapsed.Hours())
-//	minutes := int(elapsed.Minutes()) % 60
-//	seconds := int(elapsed.Seconds()) % 60
-//
-//	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
-//}
-
 func (fr *FileReport) Elapsed() string {
+
 	elapsed := time.Since(fr.startTime)
 	hours := int(elapsed.Hours())
 	minutes := int(elapsed.Minutes()) % 60
 	seconds := int(elapsed.Seconds()) % 60
 
-	result := ""
+	var report string
 	if hours > 0 {
-		result += fmt.Sprintf("%dh", hours)
+		report += fmt.Sprintf("%dh", hours)
 	}
 	if minutes > 0 {
-		result += fmt.Sprintf("%dm", minutes)
+		report += fmt.Sprintf("%dm", minutes)
 	}
-	if seconds > 0 || result == "" {
-		result += fmt.Sprintf("%ds", seconds)
+	if seconds > 0 || report == "" {
+		report += fmt.Sprintf("%ds", seconds)
 	}
 
-	return result
+	return report
 }
 
 func Interrupt() <-chan os.Signal {
