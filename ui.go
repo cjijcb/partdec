@@ -35,7 +35,6 @@ const (
 	clearToEnd = string(ESC) + "[0J"
 	hideCursor = string(ESC) + "[?25l"
 	showCursor = string(ESC) + "[?25h"
-
 )
 
 var (
