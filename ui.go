@@ -36,10 +36,6 @@ const (
 	hideCursor = string(ESC) + "[?25l"
 	showCursor = string(ESC) + "[?25h"
 
-	Kibi = 1024
-	Mebi = 1024 * 1024
-	Gibi = 1024 * 1024 * 1024
-	Tebi = 1024 * 1024 * 1024 * 1024
 )
 
 var (
