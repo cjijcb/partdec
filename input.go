@@ -96,7 +96,7 @@ func (ps *Paths) Set(value string) error {
 }
 
 func (bs *ByteSize) String() string {
-	return fmt.Sprintf("%d", bs)
+	return fmt.Sprintf("%d", *bs)
 }
 
 func (bs *ByteSize) Set(value string) error {
