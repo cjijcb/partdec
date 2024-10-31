@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -15,6 +17,11 @@ type (
 	ErrBuilder struct {
 		*strings.Builder
 	}
+
+	Header struct {
+		http.Header
+	}
+
 	Paths    []string
 	ByteSize int64
 )
@@ -32,9 +39,12 @@ const (
 )
 
 var (
-	PartFlag   int      = 1
-	SizeFlag   ByteSize = -1
-	DirFlag    Paths
+	PartFlag    int           = 1
+	SizeFlag    ByteSize      = -1
+	TimeoutFlag time.Duration = 0
+	DirFlag     Paths
+	HeaderFlag  Header = Header{make(http.Header)}
+
 	ErrOnFlags = &ErrBuilder{new(strings.Builder)}
 
 	ByteUnit = map[string]int64{
@@ -66,7 +76,11 @@ func main() {
 
 	flag.Var(&SizeFlag, "size", "Specify directories (can be used times)")
 
+	flag.Var(&HeaderFlag, "header", "Specify directories (can be used times)")
+
 	flag.IntVar(&PartFlag, "part", 1, "help message")
+
+	flag.DurationVar(&TimeoutFlag, "timeout", 0, "help message")
 
 	flag.Usage = func() {
 		fmt.Fprint(ErrOnFlags, "This is a custom help message for our application.\n\n")
@@ -76,6 +90,8 @@ func main() {
 
 	flag.Parse()
 
+	fmt.Printf("header: %+v\n", HeaderFlag)
+	fmt.Println("timeout: ", TimeoutFlag)
 	fmt.Println("part value is: ", PartFlag)
 	fmt.Println("Directories:", DirFlag)
 	fmt.Println("Size:", SizeFlag)
@@ -92,6 +108,20 @@ func (ps *Paths) String() string {
 
 func (ps *Paths) Set(value string) error {
 	*ps = append(*ps, value)
+	return nil
+}
+
+func (h *Header) String() string {
+	return fmt.Sprintf("%+v", h.Header)
+}
+
+func (h *Header) Set(value string) error {
+
+	if hKeyVal := strings.SplitAfterN(value, ":", 2); len(hKeyVal) > 1 {
+
+		h.Add(hKeyVal[0], strings.Trim(hKeyVal[1], " "))
+	}
+
 	return nil
 }
 
