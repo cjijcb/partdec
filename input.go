@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,10 +16,6 @@ import (
 )
 
 type (
-	ErrBuilder struct {
-		*strings.Builder
-	}
-
 	Header struct {
 		http.Header
 	}
@@ -36,6 +34,8 @@ const (
 	Mega = 1000 * 1000
 	Giga = 1000 * 1000 * 1000
 	Tera = 1000 * 1000 * 1000 * 1000
+
+	ManPage = "TODO manpage"
 )
 
 var (
@@ -44,8 +44,6 @@ var (
 	TimeoutFlag time.Duration = 0
 	DirFlag     Paths
 	HeaderFlag  Header = Header{make(http.Header)}
-
-	ErrOnFlags = &ErrBuilder{new(strings.Builder)}
 
 	ByteUnit = map[string]int64{
 		"":  1,
@@ -68,28 +66,44 @@ var (
 	}
 )
 
+func init() {
+
+	flag.CommandLine.Init(os.Args[0], flag.ContinueOnError)
+	flag.CommandLine.SetOutput(io.Discard)
+	flag.CommandLine.Usage = func() {}
+
+	flag.Var(&DirFlag, "dir", "")
+	flag.Var(&SizeFlag, "size", "")
+	flag.Var(&HeaderFlag, "header", "")
+	flag.IntVar(&PartFlag, "part", 1, "")
+	flag.DurationVar(&TimeoutFlag, "timeout", 0, "")
+
+}
+
 func main() {
 
-	flag.CommandLine.SetOutput(ErrOnFlags)
+	uri, err := ParseArgs(flag.CommandLine)
 
-	flag.Var(&DirFlag, "dir", "Specify directories (can be used times)")
+	if err != nil {
 
-	flag.Var(&SizeFlag, "size", "Specify directories (can be used times)")
+		switch {
+		case errors.Is(err, flag.ErrHelp):
+			fmt.Fprintf(os.Stderr, "%s\n", ManPage)
+		case strings.Contains(err.Error(), "flag provided but not defined:"):
+			fmt.Fprintf(
+				os.Stderr,
+				"invalid argument:%s\n",
+				strings.SplitAfterN(err.Error(), ":", 2)[1],
+			)
+		default:
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+		}
 
-	flag.Var(&HeaderFlag, "header", "Specify directories (can be used times)")
+		os.Exit(2)
 
-	flag.IntVar(&PartFlag, "part", 1, "help message")
-
-	flag.DurationVar(&TimeoutFlag, "timeout", 0, "help message")
-
-	flag.Usage = func() {
-		fmt.Fprint(ErrOnFlags, "This is a custom help message for our application.\n\n")
-		flag.PrintDefaults()
-		fmt.Fprint(os.Stderr, ErrOnFlags.String())
 	}
 
-	flag.Parse()
-
+	fmt.Println("uri: ", uri)
 	fmt.Printf("header: %+v\n", HeaderFlag)
 	fmt.Println("timeout: ", TimeoutFlag)
 	fmt.Println("part value is: ", PartFlag)
@@ -98,8 +112,42 @@ func main() {
 
 }
 
-func (e *ErrBuilder) Error() string {
-	return e.String()
+func ParseArgs(fs *flag.FlagSet) (string, error) {
+
+	err := fs.Parse(os.Args[1:])
+
+	if err != nil {
+		return "", err
+	}
+
+	var uri string
+
+	args := fs.Args()
+
+	for len(args) > 0 {
+
+		switch {
+		case uri == "":
+			uri = args[0]
+		default:
+			return "", fmt.Errorf("invalid argument: %s", uri)
+		}
+
+		err := fs.Parse(args[1:])
+
+		if err != nil {
+			return "", err
+		}
+
+		args = fs.Args()
+	}
+
+	if uri == "" {
+		return "", flag.ErrHelp
+	}
+
+	return uri, nil
+
 }
 
 func (ps *Paths) String() string {
