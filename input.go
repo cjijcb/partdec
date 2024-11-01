@@ -39,11 +39,15 @@ const (
 )
 
 var (
-	PartFlag    int           = 1
-	SizeFlag    ByteSize      = -1
-	TimeoutFlag time.Duration = 0
-	DirFlag     Paths
-	HeaderFlag  Header = Header{make(http.Header)}
+	PartFlag          int
+	SizeFlag          ByteSize
+	TimeoutFlag       time.Duration
+	HeaderFlag        Header
+	DirFlag           Paths
+	ZeroResumeFlag    bool
+	ZeroCompletedFlag bool
+	ZeroBrokenFlag    bool
+	ZeroAllFlag       bool
 
 	ByteUnit = map[string]int64{
 		"":  1,
@@ -66,21 +70,39 @@ var (
 	}
 )
 
-func init() {
+func InitArgs(fs *flag.FlagSet) {
 
-	flag.CommandLine.Init(os.Args[0], flag.ContinueOnError)
-	flag.CommandLine.SetOutput(io.Discard)
-	flag.CommandLine.Usage = func() {}
+	fs.Init(os.Args[0], flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.Usage = func() {}
 
-	flag.Var(&DirFlag, "dir", "")
-	flag.Var(&SizeFlag, "size", "")
-	flag.Var(&HeaderFlag, "header", "")
-	flag.IntVar(&PartFlag, "part", 1, "")
-	flag.DurationVar(&TimeoutFlag, "timeout", 0, "")
+	fs.Var(&DirFlag, "dir", "")
+	fs.Var(&DirFlag, "d", "")
+
+	SizeFlag = -1
+	fs.Var(&SizeFlag, "size", "")
+	fs.Var(&SizeFlag, "s", "")
+
+	HeaderFlag = Header{make(http.Header)}
+	fs.Var(&HeaderFlag, "header", "")
+	fs.Var(&HeaderFlag, "H", "")
+
+	fs.IntVar(&PartFlag, "part", 1, "")
+	fs.IntVar(&PartFlag, "p", 1, "")
+
+	fs.DurationVar(&TimeoutFlag, "timeout", 0, "")
+	fs.DurationVar(&TimeoutFlag, "t", 0, "")
+
+	fs.BoolVar(&ZeroResumeFlag, "zr", false, "")
+	fs.BoolVar(&ZeroCompletedFlag, "zc", false, "")
+	fs.BoolVar(&ZeroBrokenFlag, "zb", false, "")
+	fs.BoolVar(&ZeroAllFlag, "za", false, "")
 
 }
 
 func main() {
+
+	InitArgs(flag.CommandLine)
 
 	uri, err := ParseArgs(flag.CommandLine)
 
