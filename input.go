@@ -1,4 +1,4 @@
-package main
+package partdec
 
 import (
 	"errors"
@@ -230,15 +230,15 @@ func ParseArgs(fs *flag.FlagSet) (string, error) {
 
 func HandleArgsErr(err error) error {
 
-	if strings.Contains(err.Error(), "flag provided but not defined:") {
-		err = NewErr(
-			"%s:%s\n",
-			ErrArgs,
-			strings.SplitAfterN(err.Error(), ":", 2)[1],
-		)
-	}
-
 	if err != nil {
+
+		if strings.Contains(err.Error(), "flag provided but not defined:") {
+			err = NewErr(
+				"%s:%s\n",
+				ErrArgs,
+				strings.SplitAfterN(err.Error(), ":", 2)[1],
+			)
+		}
 
 		switch {
 		case errors.Is(err, flag.ErrHelp):
