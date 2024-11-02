@@ -1,6 +1,7 @@
 package partdec
 
 import (
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -34,9 +35,13 @@ const (
 	Mega = 1000 * 1000
 	Giga = 1000 * 1000 * 1000
 	Tera = 1000 * 1000 * 1000 * 1000
-
-	ManPage = "TODO manpage"
 )
+
+//go:embed doc/version_page.txt
+var VersionPage string
+
+//go:embed doc/help_page.txt
+var HelpPage string
 
 var (
 	PartFlag          int
@@ -51,6 +56,7 @@ var (
 	ZeroAllFlag       bool
 	ForcePartFlag     bool
 	QuietFlag         bool
+	VersionFlag       bool
 
 	ByteUnit = map[string]int64{
 		"":  1,
@@ -72,40 +78,6 @@ var (
 		"TB": Tera,
 	}
 )
-
-func mainTest() {
-
-	InitArgs(flag.CommandLine)
-
-	uri, err := ParseArgs(flag.CommandLine)
-
-	if err != nil {
-
-		switch {
-		case errors.Is(err, flag.ErrHelp):
-			fmt.Fprintf(os.Stderr, "%s\n", ManPage)
-		case strings.Contains(err.Error(), "flag provided but not defined:"):
-			fmt.Fprintf(
-				os.Stderr,
-				"invalid argument:%s\n",
-				strings.SplitAfterN(err.Error(), ":", 2)[1],
-			)
-		default:
-			fmt.Fprintf(os.Stderr, "%s\n", err)
-		}
-
-		os.Exit(2)
-
-	}
-
-	fmt.Println("uri: ", uri)
-	fmt.Printf("header: %+v\n", HeaderFlag)
-	fmt.Println("timeout: ", TimeoutFlag)
-	fmt.Println("part value is: ", PartFlag)
-	fmt.Println("Directories:", DirFlag)
-	fmt.Println("Size:", SizeFlag)
-
-}
 
 func NewDLOptions() (*DLOptions, error) {
 
@@ -188,6 +160,8 @@ func InitArgs(fs *flag.FlagSet) {
 	fs.BoolVar(&ForcePartFlag, "fp", false, "")
 	fs.BoolVar(&QuietFlag, "q", false, "")
 
+	fs.BoolVar(&VersionFlag, "version", false, "")
+
 }
 
 func ParseArgs(fs *flag.FlagSet) (string, error) {
@@ -196,6 +170,10 @@ func ParseArgs(fs *flag.FlagSet) (string, error) {
 
 	if err != nil {
 		return "", err
+	}
+
+	if VersionFlag {
+		return "", ErrVer
 	}
 
 	var uri string
@@ -241,8 +219,10 @@ func HandleArgsErr(err error) error {
 		}
 
 		switch {
+		case errors.Is(err, ErrVer):
+			fmt.Fprintf(os.Stderr, "%s", VersionPage)
 		case errors.Is(err, flag.ErrHelp):
-			fmt.Fprintf(os.Stderr, "%s\n", ManPage)
+			fmt.Fprintf(os.Stderr, "%s", HelpPage)
 		default:
 			fmt.Fprintf(os.Stderr, "%s\n", err)
 		}
