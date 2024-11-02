@@ -2,7 +2,6 @@ package partdec
 
 import (
 	_ "embed"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -219,12 +218,12 @@ func HandleArgsErr(err error) error {
 		}
 
 		switch {
-		case errors.Is(err, ErrVer):
+		case IsErr(err, ErrVer):
 			fmt.Fprintf(os.Stderr, "%s", VersionPage)
-		case errors.Is(err, flag.ErrHelp):
+		case IsErr(err, flag.ErrHelp):
 			fmt.Fprintf(os.Stderr, "%s", HelpPage)
 		default:
-			fmt.Fprintf(os.Stderr, "%s\n", err)
+			fmt.Fprintf(os.Stderr, "%s", err)
 		}
 
 		return err
