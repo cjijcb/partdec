@@ -1,4 +1,4 @@
-package main
+package partdec
 
 import (
 	"context"
@@ -194,18 +194,18 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 
 }
 
-func NewDownload(opt DLOptions) (*Download, error) {
+func NewDownload(opt *DLOptions) (*Download, error) {
 
 	var d *Download
 	var err error
 
 	switch {
 	case isFile(opt.URI):
-		d, err = NewLocalDownload(&opt)
+		d, err = NewLocalDownload(opt)
 	case isURL(opt.URI):
-		d, err = NewOnlineDownload(&opt)
+		d, err = NewOnlineDownload(opt)
 	default:
-		return nil, NewErr("%s: %s", opt.URI, ErrFileURL)
+		return nil, NewErr("%s: %s", ErrFileURL, opt.URI)
 	}
 
 	if err != nil {
@@ -253,7 +253,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 	}
 
 	if opt.PartCount > PartSoftLimit && !opt.Force {
-		return nil, NewErr("%s of %s: %s ", ErrPartLimit, PartSoftLimit, opt.PartCount)
+		return nil, NewErr("%s of %d: %d ", ErrPartLimit, PartSoftLimit, opt.PartCount)
 	}
 
 	if opt.BasePath == "" {
