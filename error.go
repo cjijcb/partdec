@@ -18,6 +18,7 @@ var (
 	ErrExhaust    = NewErr("cache resource exhausted")
 	ErrArgs       = NewErr("invalid argument")
 	ErrPartLimit  = NewErr("exceeds partition limit")
+	ErrVer        = NewErr("flag: version requested")
 )
 
 func ToErr(a any) error {
