@@ -40,6 +40,7 @@ const (
 
 var (
 	PartFlag          int
+	BaseFlag          string
 	SizeFlag          ByteSize
 	TimeoutFlag       time.Duration
 	HeaderFlag        Header
@@ -48,6 +49,8 @@ var (
 	ZeroCompletedFlag bool
 	ZeroBrokenFlag    bool
 	ZeroAllFlag       bool
+	ForcePartFlag     bool
+	QuietFlag         bool
 
 	ByteUnit = map[string]int64{
 		"":  1,
@@ -70,37 +73,7 @@ var (
 	}
 )
 
-func InitArgs(fs *flag.FlagSet) {
-
-	fs.Init(os.Args[0], flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	fs.Usage = func() {}
-
-	fs.Var(&DirFlag, "dir", "")
-	fs.Var(&DirFlag, "d", "")
-
-	SizeFlag = -1
-	fs.Var(&SizeFlag, "size", "")
-	fs.Var(&SizeFlag, "s", "")
-
-	HeaderFlag = Header{make(http.Header)}
-	fs.Var(&HeaderFlag, "header", "")
-	fs.Var(&HeaderFlag, "H", "")
-
-	fs.IntVar(&PartFlag, "part", 1, "")
-	fs.IntVar(&PartFlag, "p", 1, "")
-
-	fs.DurationVar(&TimeoutFlag, "timeout", 0, "")
-	fs.DurationVar(&TimeoutFlag, "t", 0, "")
-
-	fs.BoolVar(&ZeroResumeFlag, "zr", false, "")
-	fs.BoolVar(&ZeroCompletedFlag, "zc", false, "")
-	fs.BoolVar(&ZeroBrokenFlag, "zb", false, "")
-	fs.BoolVar(&ZeroAllFlag, "za", false, "")
-
-}
-
-func main() {
+func mainTest() {
 
 	InitArgs(flag.CommandLine)
 
@@ -134,6 +107,89 @@ func main() {
 
 }
 
+func NewDLOptions() (*DLOptions, error) {
+
+	InitArgs(flag.CommandLine)
+	uri, err := ParseArgs(flag.CommandLine)
+	err = HandleArgsErr(err)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var zmap map[FileState]bool
+	switch {
+	case ZeroAllFlag:
+		zmap = map[FileState]bool{Completed: true, Resume: true, Broken: true}
+	default:
+		zmap = map[FileState]bool{
+			Completed: ZeroCompletedFlag,
+			Resume:    ZeroResumeFlag,
+			Broken:    ZeroBrokenFlag,
+		}
+	}
+
+	var ui func(*Download)
+	switch {
+	case QuietFlag || ForcePartFlag:
+		ui = nil
+	default:
+		ui = ShowProgress
+	}
+
+	return &DLOptions{
+		URI:       uri,
+		BasePath:  BaseFlag,
+		DstDirs:   DirFlag,
+		PartCount: PartFlag,
+		PartSize:  int64(SizeFlag),
+		ReDL:      zmap,
+		UI:        ui,
+		Force:     ForcePartFlag,
+		IOMode: &IOMode{
+			Timeout:    TimeoutFlag,
+			UserHeader: HeaderFlag.Header,
+		},
+	}, nil
+
+}
+
+func InitArgs(fs *flag.FlagSet) {
+
+	fs.Init(os.Args[0], flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.Usage = func() {}
+
+	fs.Var(&DirFlag, "dir", "")
+	fs.Var(&DirFlag, "d", "")
+
+	SizeFlag = -1
+	fs.Var(&SizeFlag, "size", "")
+	fs.Var(&SizeFlag, "s", "")
+
+	HeaderFlag = Header{make(http.Header)}
+	fs.Var(&HeaderFlag, "header", "")
+	fs.Var(&HeaderFlag, "H", "")
+
+	fs.IntVar(&PartFlag, "part", 1, "")
+	fs.IntVar(&PartFlag, "p", 1, "")
+
+	fs.StringVar(&BaseFlag, "base", "", "")
+	fs.StringVar(&BaseFlag, "b", "", "")
+
+	fs.DurationVar(&TimeoutFlag, "timeout", 0, "")
+	fs.DurationVar(&TimeoutFlag, "t", 0, "")
+
+	fs.BoolVar(&ZeroResumeFlag, "zr", false, "")
+	fs.BoolVar(&ZeroCompletedFlag, "zc", false, "")
+	fs.BoolVar(&ZeroBrokenFlag, "zb", false, "")
+	fs.BoolVar(&ZeroAllFlag, "za", false, "")
+
+	fs.BoolVar(&ForcePartFlag, "fp", false, "")
+	fs.BoolVar(&QuietFlag, "q", false, "")
+
+}
+
 func ParseArgs(fs *flag.FlagSet) (string, error) {
 
 	err := fs.Parse(os.Args[1:])
@@ -152,7 +208,7 @@ func ParseArgs(fs *flag.FlagSet) (string, error) {
 		case uri == "":
 			uri = args[0]
 		default:
-			return "", fmt.Errorf("invalid argument: %s", uri)
+			return "", NewErr("%s: %s", ErrArgs, uri)
 		}
 
 		err := fs.Parse(args[1:])
@@ -169,6 +225,33 @@ func ParseArgs(fs *flag.FlagSet) (string, error) {
 	}
 
 	return uri, nil
+
+}
+
+func HandleArgsErr(err error) error {
+
+	if strings.Contains(err.Error(), "flag provided but not defined:") {
+		err = NewErr(
+			"%s:%s\n",
+			ErrArgs,
+			strings.SplitAfterN(err.Error(), ":", 2)[1],
+		)
+	}
+
+	if err != nil {
+
+		switch {
+		case errors.Is(err, flag.ErrHelp):
+			fmt.Fprintf(os.Stderr, "%s\n", ManPage)
+		default:
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+		}
+
+		return err
+
+	}
+
+	return nil
 
 }
 

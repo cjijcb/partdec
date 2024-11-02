@@ -12,10 +12,12 @@ var (
 
 	ErrCancel     = NewErr("canceled") //context.Canceled
 	ErrAbort      = NewErr("aborted")
-	ErrPartExceed = NewErr("The size of each or the number of parts exceeds the data size.")
+	ErrPartExceed = NewErr("partition size or total count exceeds the data size")
 	ErrFileURL    = NewErr("inaccessible file or invalid URL")
 	ErrDLType     = NewErr("unknown download type")
 	ErrExhaust    = NewErr("cache resource exhausted")
+	ErrArgs       = NewErr("invalid argument")
+	ErrPartLimit  = NewErr("exceeds partition limit")
 )
 
 func ToErr(a any) error {
