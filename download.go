@@ -45,6 +45,7 @@ type (
 		PartSize  int64
 		ReDL      map[FileState]bool
 		UI        func(*Download)
+		Force     bool
 		*IOMode
 	}
 
@@ -76,7 +77,8 @@ const (
 	Local DLType = iota
 	Online
 
-	MaxFetch = 32
+	PartSoftLimit = 128
+	MaxFetch      = 32
 )
 
 func (d *Download) Start() error {
@@ -250,6 +252,10 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		return nil, ErrPartExceed
 	}
 
+	if opt.PartCount > PartSoftLimit && !opt.Force {
+		return nil, NewErr("%s of %s: %s ", ErrPartLimit, PartSoftLimit, opt.PartCount)
+	}
+
 	if opt.BasePath == "" {
 		opt.BasePath = NewFileName(opt.URI, hdr)
 	}
@@ -284,6 +290,10 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
 	if opt.PartCount > int(dataSize) || opt.PartSize > dataSize {
 		return nil, ErrPartExceed
+	}
+
+	if opt.PartCount > PartSoftLimit && !opt.Force {
+		return nil, NewErr("%s of %s: %s ", ErrPartLimit, PartSoftLimit, opt.PartCount)
 	}
 
 	if opt.BasePath == "" {
