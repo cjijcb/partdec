@@ -136,22 +136,33 @@ func BuildRangeHeader(br ByteRange) string {
 }
 
 func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
+
 	ct := &http.Client{Transport: SharedTransport, Timeout: to}
 
-	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
-
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, UnknownSize, err
 	}
+	req.Header.Set("User-Agent", UserAgent)
 
-	req.Header.Set("User-Agent", "fssn/1.0.0")
 	resp, err := ct.Do(req)
-
 	if err != nil {
 		return nil, UnknownSize, err
+	}
+	defer resp.Body.Close()
+
+	if resp.ContentLength == UnknownSize { //Retry with Head method
+		req.Method = http.MethodHead
+		resp, _ := ct.Do(req)
+
+		if resp.Header != nil && resp.ContentLength != UnknownSize {
+			return resp.Header, resp.ContentLength, nil
+		}
+
 	}
 
 	return resp.Header, resp.ContentLength, nil
+
 }
 
 func newFileNameFromHeader(hdr http.Header) string {
