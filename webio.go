@@ -43,6 +43,11 @@ var (
 	SharedTransport = &http.Transport{
 		MaxIdleConnsPerHost: MaxFetch,
 	}
+
+	SharedHeader = http.Header{
+		"Accept":     []string{"*/*"},
+		"User-Agent": []string{UserAgent},
+	}
 )
 
 func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
@@ -60,8 +65,9 @@ func NewReq(method string, rawURL string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("User-Agent", UserAgent)
+
+	req.Header = SharedHeader
+
 	return req, nil
 }
 
@@ -71,7 +77,8 @@ func NewClient() *http.Client {
 }
 
 func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
-	if !br.isFullRange {
+
+	if !br.isFullRange { //overwrite Range header when there's partitioning
 		wbio.Request.Header.Set("Range", BuildRangeHeader(br))
 	}
 
@@ -96,12 +103,8 @@ func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
 	}
 	wbio := NewWebIO(NewClient(), req)
 
-	if md != nil {
-		for k := range md.UserHeader {
-			wbio.Request.Header.Add(k, md.UserHeader.Get(k))
-		}
-		wbio.Client.Timeout = md.Timeout
-	}
+	wbio.Client.Timeout = md.Timeout
+
 	return wbio, nil
 }
 

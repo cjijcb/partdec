@@ -265,7 +265,7 @@ func (h *Header) String() string {
 
 func (h *Header) Set(value string) error {
 
-	if hKeyVal := strings.SplitAfterN(value, ":", 2); len(hKeyVal) > 1 {
+	if hKeyVal := strings.SplitN(value, ":", 2); len(hKeyVal) > 1 {
 
 		h.Add(hKeyVal[0], strings.Trim(hKeyVal[1], " "))
 	}
