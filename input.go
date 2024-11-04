@@ -227,7 +227,7 @@ func HandleArgsErr(err error) error {
 
 		if strings.Contains(err.Error(), "flag provided but not defined:") {
 			err = NewErr(
-				"%s:%s\n",
+				"%s:%s",
 				ErrArgs,
 				strings.SplitAfterN(err.Error(), ":", 2)[1],
 			)
