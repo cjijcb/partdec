@@ -104,7 +104,7 @@ func (tl *Textile) ShowReport(fr *FileReport) string {
 	lineCount := 0
 	for _, fio := range fr.FileIOs {
 		size, _ := fio.Size()
-		partSize := fio.Scope.End - fio.Scope.Start + 1
+		partSize := (fio.Scope.End - fio.Scope.Start) + 1
 		path := fio.Path.Relative
 		pad := 0
 
@@ -167,9 +167,15 @@ func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSe
 
 	var percentSec, bytesSec, cachedTotal = new(float32), new(int64), new(int64)
 
+	*percentSec = 0
+
 	update := func() {
 		currentTotal := fr.FileIOs.TotalSize()
-		*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
+
+		if dataSize != UnknownSize {
+			*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
+		}
+
 		*bytesSec = currentTotal - *cachedTotal
 		*cachedTotal = currentTotal
 	}
@@ -225,6 +231,8 @@ func Interrupt() <-chan os.Signal {
 func ToEIC(b int64) string {
 
 	switch {
+	case b < 0:
+		return fmt.Sprintf("unknown")
 	case b < Kibi:
 		return fmt.Sprintf("%d B", b)
 	case b >= Kibi && b < Mebi:
