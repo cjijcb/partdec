@@ -239,7 +239,7 @@ func HandleArgsErr(err error) error {
 		case IsErr(err, flag.ErrHelp):
 			fmt.Fprintf(os.Stderr, "%s", HelpPage)
 		default:
-			fmt.Fprintf(os.Stderr, "%s", err)
+			fmt.Fprintf(os.Stderr, "%s\n", err)
 		}
 
 		return err
