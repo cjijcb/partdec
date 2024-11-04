@@ -142,30 +142,27 @@ func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
 
 	ct := &http.Client{Transport: SharedTransport, Timeout: to}
 
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
 	if err != nil {
 		return nil, UnknownSize, err
 	}
+
 	req.Header = SharedHeader
 
 	resp, err := ct.Do(req)
-	if err != nil {
-		return nil, UnknownSize, err
-	}
-	defer resp.Body.Close()
-
-	if resp.ContentLength == UnknownSize { //retry with Head method
-		req.Method = http.MethodHead
-		resp, _ := ct.Do(req)
-
-		if resp != nil && resp.ContentLength != UnknownSize {
-			return resp.Header, resp.ContentLength, nil
-		}
-
+	if err == nil {
+		return resp.Header, resp.ContentLength, nil
 	}
 
-	return resp.Header, resp.ContentLength, nil
+	req.Method = http.MethodGet
+	resp, err = ct.Do(req)
 
+	if err == nil {
+		defer resp.Body.Close()
+		return resp.Header, resp.ContentLength, nil
+	}
+
+	return nil, UnknownSize, err
 }
 
 func newFileNameFromHeader(hdr http.Header) string {
