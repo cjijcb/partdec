@@ -257,6 +257,13 @@ func NewDownload(opt *DLOptions) (*Download, error) {
 
 func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
+	if opt.IOMode != nil {
+		md := opt.IOMode
+		for k := range md.UserHeader {
+			SharedHeader.Add(k, md.UserHeader.Get(k))
+		}
+	}
+
 	hdr, cl, err := GetHeaders(opt.URI, opt.IOMode.Timeout)
 	if err != nil {
 		return nil, err
@@ -281,13 +288,6 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	if opt.IOMode != nil {
-		md := opt.IOMode
-		for k := range md.UserHeader {
-			SharedHeader.Add(k, md.UserHeader.Get(k))
-		}
-	}
-
 	return &Download{
 		Files:    fios,
 		Sources:  make([]DataCaster, 2*MaxFetch),
@@ -299,6 +299,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		UI:       opt.UI,
 		IOMode:   opt.IOMode,
 	}, nil
+
 }
 
 func NewLocalDownload(opt *DLOptions) (*Download, error) {

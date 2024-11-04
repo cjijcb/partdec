@@ -66,7 +66,7 @@ func NewReq(method string, rawURL string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req.Header = SharedHeader
+	req.Header = SharedHeader.Clone()
 
 	return req, nil
 }
@@ -146,7 +146,7 @@ func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
 	if err != nil {
 		return nil, UnknownSize, err
 	}
-	req.Header.Set("User-Agent", UserAgent)
+	req.Header = SharedHeader
 
 	resp, err := ct.Do(req)
 	if err != nil {
