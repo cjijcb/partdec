@@ -231,7 +231,7 @@ func (fios FileIOs) SetByteRange(dataSize int64, partSize int64) error {
 
 	if dataSize == UnknownSize {
 		for _, fio := range fios {
-			fio.Scope.Start = UnknownSize
+			fio.Scope.Start = 1 // end - start + 1 = -1
 			fio.Scope.End = UnknownSize
 		}
 		return nil
