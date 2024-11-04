@@ -264,7 +264,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	opt.AlignPartCountSize(cl)
 
-	if opt.PartCount > int(cl) || opt.PartSize > cl {
+	if cl != UnknownSize && (opt.PartCount > int(cl) || opt.PartSize > cl) {
 		return nil, ErrPartExceed
 	}
 

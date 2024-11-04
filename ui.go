@@ -243,22 +243,3 @@ func TermWidth() int {
 	width, _, _ := term.GetSize(int(os.Stdin.Fd()))
 	return width
 }
-
-//func (fio *FileIO) TimedSizer(tkr *time.Ticker) SizeFunc {
-//
-//	var cachedSize = new(int64)
-//	var err error
-//
-//	return func() (int64, error) {
-//
-//		select {
-//		case <-tkr.C:
-//			*cachedSize, err = fio.Size()
-//			return *cachedSize, err
-//		default:
-//			return *cachedSize, err
-//		}
-//
-//	}
-//
-//}
