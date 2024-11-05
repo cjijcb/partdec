@@ -150,7 +150,7 @@ func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
 	req.Header = SharedHeader
 
 	resp, err := ct.Do(req)
-	if err == nil {
+	if err == nil && resp.ContentLength != UnknownSize {
 		return resp.Header, resp.ContentLength, nil
 	}
 
