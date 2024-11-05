@@ -157,7 +157,7 @@ func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
 	req.Method = http.MethodGet
 	resp, err = ct.Do(req)
 
-	if err == nil && resp.ContentLength != UnknownSize {
+	if err == nil {
 		defer resp.Body.Close()
 		return resp.Header, resp.ContentLength, nil
 	}
