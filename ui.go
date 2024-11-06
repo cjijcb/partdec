@@ -73,7 +73,6 @@ func ShowProgress(d *Download) {
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
-	var resetDisplay string
 	fmt.Print(hideCursor)
 	for d.Status == Pending || d.Status == Running {
 
@@ -88,14 +87,11 @@ func ShowProgress(d *Download) {
 			break
 		}
 
-		if baseWidth >= safeWidth {
-			resetDisplay = upLine(tl.Height)
-		} else {
-			resetDisplay = homeCursor
-		}
+		resetDisplay := upLine(tl.Height)
 
 		if baseWidth != tl.Width {
 			baseWidth = tl.Width
+			resetDisplay = homeCursor
 			resetDisplay += clearToEnd
 		}
 		time.Sleep(150 * time.Millisecond)
@@ -141,15 +137,14 @@ func (tl *Textile) ShowReport(fr *FileReport) string {
 
 	percentSec, bytesSec := fr.ReportFunc()
 
-	fmt.Fprintf(tl, "%s\n%6.2f%%  |%12s%s  |  %s\n%d\n",
+	fmt.Fprintf(tl, "%s\n%6.2f%%  |%12s%s  |  %s\n", //two lines
 		Div,
 		percentSec,
 		ToEIC(bytesSec), "/s",
 		fr.Elapsed(),
-		termWidth,
 	)
 
-	lineCount += 3
+	lineCount += 2
 
 	tl.Height = lineCount
 	tl.Width = termWidth
