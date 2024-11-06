@@ -67,8 +67,10 @@ func ShowProgress(d *Download) {
 
 	sig, interrSig := os.Signal(nil), Interrupt()
 
-	baseWidth := TermWidth()
-	tl := &Textile{new(strings.Builder), 0, baseWidth}
+	tl := &Textile{new(strings.Builder), 0, TermWidth()}
+
+	baseWidth := tl.Width
+	baseHeight := tl.Height
 
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
@@ -87,11 +89,19 @@ func ShowProgress(d *Download) {
 			break
 		}
 
+		if baseHeight == 0 {
+			baseHeight = tl.Height
+		}
+
 		resetDisplay := upLine(tl.Height)
 
 		if baseWidth != tl.Width {
 			baseWidth = tl.Width
-			resetDisplay = homeCursor
+
+			if baseHeight != tl.Height {
+				resetDisplay = homeCursor
+			}
+
 			resetDisplay += clearToEnd
 		}
 		time.Sleep(150 * time.Millisecond)
