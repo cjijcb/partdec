@@ -47,6 +47,7 @@ type (
 
 const (
 	ESC rune = 27
+	
 
 	clearToEnd = string(ESC) + "[0J"
 	hideCursor = string(ESC) + "[?25l"
@@ -54,6 +55,7 @@ const (
 )
 
 var (
+	Div string = strings.Repeat("-", 40)
 	upLine = func(n int) string { return fmt.Sprintf("%c[%dF", ESC, n) }
 )
 
@@ -128,13 +130,20 @@ func (tl *Textile) ShowReport(fr *FileReport) string {
 
 	percentSec, bytesSec := fr.ReportFunc()
 
-	fmt.Fprintf(tl, "%6.2f%% %14s%-13s %-10s\n",
+	fmt.Fprintf(tl, "%s\n%6.2f%%  |%12s%s  |  %s\n%d\n",
+		Div,
 		percentSec,
 		ToEIC(bytesSec), "/s",
 		fr.Elapsed(),
+		termWidth,
 	)
 
-	lineCount++
+	lineCount+=3
+
+	if termWidth < 40 {
+		lineCount*=2
+	}
+
 	tl.Height = lineCount
 	tl.Width = termWidth
 
