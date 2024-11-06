@@ -260,7 +260,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 	if opt.IOMode != nil {
 		md := opt.IOMode
 		for k := range md.UserHeader {
-			SharedHeader.Add(k, md.UserHeader.Get(k))
+			SharedHeader.Set(k, md.UserHeader.Get(k))
 		}
 	}
 
