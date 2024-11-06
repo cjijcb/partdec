@@ -47,16 +47,18 @@ type (
 
 const (
 	ESC rune = 27
-	
+
+	safeWidth = 40
 
 	clearToEnd = string(ESC) + "[0J"
 	hideCursor = string(ESC) + "[?25l"
 	showCursor = string(ESC) + "[?25h"
+	homeCursor = string(ESC) + "[H"
 )
 
 var (
-	Div string = strings.Repeat("-", 40)
-	upLine = func(n int) string { return fmt.Sprintf("%c[%dF", ESC, n) }
+	Div    string = strings.Repeat("-", safeWidth)
+	upLine        = func(n int) string { return fmt.Sprintf("%c[%dF", ESC, n) }
 )
 
 func ShowProgress(d *Download) {
@@ -71,6 +73,7 @@ func ShowProgress(d *Download) {
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
+	var resetDisplay string
 	fmt.Print(hideCursor)
 	for d.Status == Pending || d.Status == Running {
 
@@ -85,7 +88,12 @@ func ShowProgress(d *Download) {
 			break
 		}
 
-		resetDisplay := upLine(tl.Height)
+		if baseWidth >= safeWidth {
+			resetDisplay = upLine(tl.Height)
+		} else {
+			resetDisplay = homeCursor
+		}
+
 		if baseWidth != tl.Width {
 			baseWidth = tl.Width
 			resetDisplay += clearToEnd
@@ -103,7 +111,10 @@ func (tl *Textile) ShowReport(fr *FileReport) string {
 	defer tl.Reset()
 
 	termWidth := TermWidth()
-	lineCount := 0
+
+	fmt.Fprintf(tl, "%-*s\n", termWidth, Div)
+	lineCount := 1
+
 	for _, fio := range fr.FileIOs {
 		size, _ := fio.Size()
 		partSize := (fio.Scope.End - fio.Scope.Start) + 1
@@ -138,11 +149,7 @@ func (tl *Textile) ShowReport(fr *FileReport) string {
 		termWidth,
 	)
 
-	lineCount+=3
-
-	if termWidth < 40 {
-		lineCount*=2
-	}
+	lineCount += 3
 
 	tl.Height = lineCount
 	tl.Width = termWidth
