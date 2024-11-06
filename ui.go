@@ -76,6 +76,7 @@ func ShowProgress(d *Download) {
 	defer fr.Flush()
 
 	fmt.Print(hideCursor)
+	var resetDisplay string
 	for d.Status == Pending || d.Status == Running {
 
 		select {
@@ -89,20 +90,19 @@ func ShowProgress(d *Download) {
 			break
 		}
 
-		if baseHeight == 0 {
+		switch {
+		case baseHeight == 0:
 			baseHeight = tl.Height
-		}
-
-		resetDisplay := upLine(tl.Height)
-
-		if baseWidth != tl.Width {
+			resetDisplay = upLine(tl.Height) + clearToEnd
+		case baseHeight != tl.Height:
+			baseHeight = tl.Height
+			resetDisplay = homeCursor
+			fallthrough
+		case baseWidth != tl.Width:
 			baseWidth = tl.Width
-
-			if baseHeight != tl.Height {
-				resetDisplay = homeCursor
-			}
-
 			resetDisplay += clearToEnd
+		default:
+			resetDisplay = upLine(tl.Height) + clearToEnd
 		}
 		time.Sleep(150 * time.Millisecond)
 		fmt.Print(resetDisplay)
