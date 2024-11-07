@@ -172,7 +172,7 @@ func InitArgs(fs *flag.FlagSet) {
 	fs.BoolVar(&ZeroBrokenFlag, "zb", false, "")
 	fs.BoolVar(&ZeroAllFlag, "za", false, "")
 
-	fs.BoolVar(&ForcePartFlag, "fp", false, "")
+	fs.BoolVar(&ForcePartFlag, "F", false, "")
 	fs.BoolVar(&QuietFlag, "q", false, "")
 
 	fs.BoolVar(&VersionFlag, "version", false, "")
