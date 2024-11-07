@@ -91,16 +91,16 @@ func ShowProgress(d *Download) {
 		}
 
 		switch {
-		case baseHeight == 0:
-			baseHeight = tl.Height
-			fallthrough
 		case baseWidth == tl.Width:
 			resetDisplay = upLine(tl.Height)
+			fallthrough
+		case baseHeight == 0:
+			baseHeight = tl.Height
 		case baseHeight != tl.Height:
 			baseHeight = tl.Height
 			resetDisplay = homeCursor
 			fallthrough
-		case baseWidth != tl.Width:
+		default:
 			baseWidth = tl.Width
 			resetDisplay += clearToEnd
 		}
