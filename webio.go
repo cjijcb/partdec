@@ -42,6 +42,7 @@ const (
 var (
 	SharedTransport = &http.Transport{
 		MaxIdleConnsPerHost: MaxFetch,
+		DisableKeepAlives:   false,
 	}
 
 	SharedHeader = http.Header{

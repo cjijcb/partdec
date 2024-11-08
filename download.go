@@ -44,6 +44,7 @@ type (
 	IOMode struct {
 		Timeout    time.Duration
 		UserHeader http.Header
+		ConnReuse  bool
 		O_FLAGS    int
 	}
 	FlowControl struct {
@@ -256,6 +257,8 @@ func NewDownload(opt *DLOptions) (*Download, error) {
 }
 
 func NewOnlineDownload(opt *DLOptions) (*Download, error) {
+
+	SharedTransport.DisableKeepAlives = opt.IOMode.ConnReuse
 
 	if opt.IOMode != nil {
 		md := opt.IOMode
