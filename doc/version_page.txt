@@ -1,4 +1,0 @@
-partdec version 1.0.0
-Copyright (C) 2024 Carlo Jay I. Jacaba
-
-Report bugs to https://github.com/cjijcb/partdec/issues

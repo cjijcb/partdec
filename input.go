@@ -52,10 +52,10 @@ const (
 	Tera = 1000 * 1000 * 1000 * 1000
 )
 
-//go:embed doc/version_page.txt
+//go:embed doc/version_page
 var VersionPage string
 
-//go:embed doc/help_page.txt
+//go:embed doc/help_page
 var HelpPage string
 
 var (
