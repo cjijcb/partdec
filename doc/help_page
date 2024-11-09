@@ -1,11 +1,7 @@
-USAGE
-    partdec [OPTIONS] [URL | LOCAL PATH]
+Usage: partdec [OPTIONS]... <URL|LOCAL PATH>
+Seamlessly split files from the web or local storage. 
 
-DESCRIPTION
-    partdec is a command-line utility for multipart downloading and file splitting.
-    Seamlessly split files from the web or local storage. 
-
-OPTIONS
+Options:
   -p, -part <N>
     Split the file into N parts.
     If N is zero or less, it defaults to 1.
@@ -71,7 +67,7 @@ OPTIONS
   -R
     Reset files with an initial [resume] state to [new].
 
-OUPUT FILE STATES
+Output File States:
     File states are based on the initial size of files and may change during or after
     the download. States can also be affected by I/O operation errors and the file scope,
     which determines the maximum size a file can reach.
@@ -82,6 +78,6 @@ OUPUT FILE STATES
     [broken]        File that exceeds the maximum size or has an I/O operation error.
     [unknown]       File with a scope that cannot be determined.
 
-    Note: A file with the [unknown] state is always truncated to 0 size at every run given
-    with the same options. This state occurs when a web server does not support multipart
+    A file with the [unknown] state is always truncated to 0 size at every run given with
+    the same options. This state occurs when a web server does not support multipart
     downloading. 
