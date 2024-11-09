@@ -28,12 +28,12 @@ var (
 
 	ErrCancel     = NewErr("canceled") //context.Canceled
 	ErrAbort      = NewErr("aborted")
-	ErrPartExceed = NewErr("partition size or total count exceeds the data size")
+	ErrPartExceed = NewErr("output file size or total count exceeds the source file size")
 	ErrFileURL    = NewErr("inaccessible file or invalid URL")
 	ErrDLType     = NewErr("unknown download type")
-	ErrExhaust    = NewErr("cache resource exhausted")
+	ErrExhaust    = NewErr("resource exhausted")
 	ErrArgs       = NewErr("invalid argument")
-	ErrPartLimit  = NewErr("exceeds partition limit")
+	ErrPartLimit  = NewErr("exceeds output file count limit")
 	ErrVer        = NewErr("flag: version requested")
 )
 
