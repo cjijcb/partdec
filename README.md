@@ -96,11 +96,11 @@ folddlowing instructions apply to both systems.
 
 ## combining outfiles that are in the same directory.
 
+Sypnosis:
 ```bash
 cat [PATH]<FILENAME>_* > [PATH]<NEWFILENAME>
 ```
 Examples:
-
 ```bash
 cat archive.zip_* > my_archive.zip
 ```
@@ -108,12 +108,11 @@ cat archive.zip_* > my_archive.zip
 cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
 ```
 ### combining output files that are in multiple directories
-
+Sypnosis:
 ```bash
   cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
 ```
 Examples:
-
 ```bash
 cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
 ```
