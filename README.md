@@ -1,6 +1,41 @@
 # TODO
 
+# Combining Split Files
 
+You can use `cat` command-line utility in unix base systems and `type` in windows base systems.
+folddlowing instructions apply to both systems. 
+
+### Output files in the same directory.
+
+Sypnosis:
+```
+cat [PATH]<FILENAME>_* > [PATH]<NEWFILENAME>
+```
+Examples:
+```bash
+cat archive.zip_* > my_archive.zip
+```
+```bash
+cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
+```
+Notes:
+`<FILENAME>` is the ouput filename without `_N` suffix. 
+
+### Output files in multiple directories
+Sypnosis:
+```
+cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
+```
+Examples:
+```bash
+cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
+```
+```bash
+cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
+```
+Notes: The order of the paths is EXTREMELY IMPORTANT. They should be in ascending order
+based on the numeric suffixes of the files, from left (lowest numeric suffix) to right
+(highest numeric suffix).
 
 # Command-Line Usage
 ```
@@ -89,38 +124,3 @@ Output File States:
     downloading. 
 ```
 
-# Combining Split Files
-
-You can use `cat` command-line utility in unix base systems and `type` in windows base systems.
-folddlowing instructions apply to both systems. 
-
-### Output files that are in the same directory.
-
-Sypnosis:
-```
-cat [PATH]<FILENAME>_* > [PATH]<NEWFILENAME>
-```
-Examples:
-```bash
-cat archive.zip_* > my_archive.zip
-```
-```bash
-cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
-```
-Notes:
-`<FILENAME>` is the ouput filename without `_N` suffix. 
-
-### Output files that are in multiple directories
-Sypnosis:
-```
-cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
-```
-Examples:
-```bash
-cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
-```
-```bash
-cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
-```
-Notes:
-The odering of the file paths is **EXTREMELY IMPORTANT**.
