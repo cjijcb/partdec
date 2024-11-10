@@ -2,10 +2,10 @@
 
 # Combining Split Files
 
-You can use `cat` command-line utility in unix base systems and `type` in windows base systems.
+Use `cat` command-line utility in unix base systems and `type` in windows base systems.
 folddlowing instructions apply to both systems. 
 
-### Output files in the same directory.
+### Files in the same directory.
 
 Sypnosis:
 ```
@@ -19,9 +19,9 @@ cat archive.zip_* > my_archive.zip
 cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
 ```
 Notes:
-`<FILENAME>` is the ouput filename without `_N` suffix. 
+`<FILENAME>` is the filename without `_N` suffix. 
 
-### Output files in multiple directories
+### Files in multiple directories
 Sypnosis:
 ```
 cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
