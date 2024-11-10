@@ -33,7 +33,7 @@ cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
 ```bash
 cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 ```
-Notes: The order of the paths is EXTREMELY IMPORTANT. They should be in ascending order
+Notes: The order of the paths is **EXTREMELY IMPORTANT**. They should be in ascending order
 based on the numeric suffixes of the files, from left (lowest numeric suffix) to right
 (highest numeric suffix).
 
