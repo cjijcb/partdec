@@ -107,6 +107,9 @@ cat archive.zip_* > my_archive.zip
 ```bash
 cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
 ```
+Notes:
+`<FILENAME>` is the ouput filename without `_N` suffix. 
+
 ### Output files that are in multiple directories
 Sypnosis:
 ```
@@ -119,3 +122,5 @@ cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
 ```bash
 cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 ```
+Notes:
+The odering of the file paths is **EXTREMELY IMPORTANT**.
