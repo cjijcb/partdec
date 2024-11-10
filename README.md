@@ -94,7 +94,7 @@ Output File States:
 You can use `cat` command-line utility in unix base systems and `type` in windows base systems.
 folddlowing instructions apply to both systems. 
 
-## combining outfiles that are in the same directory.
+### Output files that are in the same directory.
 
 Sypnosis:
 ```bash
@@ -107,7 +107,7 @@ cat archive.zip_* > my_archive.zip
 ```bash
 cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
 ```
-### combining output files that are in multiple directories
+### Output files that are in multiple directories
 Sypnosis:
 ```bash
   cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
