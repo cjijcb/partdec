@@ -79,5 +79,5 @@ Output File States:
     [unknown]       File with a scope that cannot be determined.
 
     A file with the [unknown] state is always truncated to 0 size at every run given with
-    the same options. This state occurs when a web server does not support multipart
+    the same arguments. This state occurs when a web server does not support multipart
     downloading. 

@@ -18,7 +18,7 @@ package partdec
 
 import (
 	_ "embed"
-	"flag"
+	"flag" //not the best
 	"fmt"
 	"io"
 	"net/http"
