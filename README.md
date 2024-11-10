@@ -8,7 +8,7 @@ PowerShell, `cat` is also an alias for `type`. So, the following guide applies t
 systems. If you'd like use other software, refer to the manual of the software of your
 choice.
 
-### Files in the same directory.
+### Files in the same directory
 
 Sypnosis:
 ```
