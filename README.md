@@ -94,13 +94,14 @@ Output File States:
 You can use `cat` command-line utility in unix base systems and `type` in windows base systems.
 folddlowing instructions apply to both systems. 
 
-## combining outfiles that are in the same directory.
-    
-    `cat <FILENAME>_* > NEWFILENAME>
+### combining outfiles that are in the same directory.
 
-    replace `<FILENAME>` with the actual filename of output files without _N suffix
-    replace `<NEWFILENAME>` with the destination directory plus new filename. 
+  ```bash
+    cat <FILENAME>_* > NEWFILENAME>
+  ```
+  replace `<FILENAME>` with the actual filename of output files without _N suffix
+  replace `<NEWFILENAME>` with the destination directory plus new filename. 
     
-## combining output files that are in different directories
+### combining output files that are in different directories
 
     `cat <DIR1><FILENAME>_* <DIR2><FILENAME>_* ... > <NEWFILENAME>
