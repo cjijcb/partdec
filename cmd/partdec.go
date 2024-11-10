@@ -20,12 +20,11 @@ import (
 	"fmt"
 	"github.com/cjijcb/partdec"
 	"os"
-	"runtime"
 )
 
 func main() {
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	//runtime.GOMAXPROCS(runtime.NumCPU()) //default behavior since Go 1.5
 
 	var d *partdec.Download
 
