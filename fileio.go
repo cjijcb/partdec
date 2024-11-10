@@ -351,16 +351,32 @@ func FileNameIndexer(maxIndex int) func(string) string {
 		}
 	}
 
+	pad := countDigits(maxIndex)
 	currentIndex := 0
 
 	return func(name string) string {
 		if currentIndex < maxIndex {
 			currentIndex++
-			return fmt.Sprintf("%s_%d", name, currentIndex)
+			return fmt.Sprintf("%s_%0*d", name, pad, currentIndex)
 		}
 		return name
 	}
+}
 
+func countDigits(n int) int {
+	count := 0
+	switch {
+	case n == 0:
+		return 1
+	case n < 0:
+		n = -n
+	}
+
+	for n > 0 {
+		n /= 10
+		count++
+	}
+	return count
 }
 
 func (s FileState) String() string {
