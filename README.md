@@ -97,7 +97,7 @@ folddlowing instructions apply to both systems.
 ### Output files that are in the same directory.
 
 Sypnosis:
-```bash
+```
 cat [PATH]<FILENAME>_* > [PATH]<NEWFILENAME>
 ```
 Examples:
@@ -109,8 +109,8 @@ cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
 ```
 ### Output files that are in multiple directories
 Sypnosis:
-```bash
-  cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
+```
+cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
 ```
 Examples:
 ```bash
