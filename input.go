@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -308,23 +307,31 @@ func (bs *ByteSize) Set(value string) error {
 	return nil
 }
 
-func isFile(path string) bool {
-	if info, err := os.Stat(filepath.Clean(path)); err == nil {
+func IsFile(path string) bool {
+	if info, err := os.Stat(path); err == nil {
 		return info.Mode().IsRegular()
 	} else {
 		return false
 	}
 }
 
-func isDir(path string) bool {
-	if info, err := os.Stat(filepath.Clean(path)); err == nil {
+func IsFileWithErr(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	return info.Mode().IsRegular(), nil
+}
+
+func IsDir(path string) bool {
+	if info, err := os.Stat(path); err == nil {
 		return info.Mode().IsDir()
 	} else {
 		return false
 	}
 }
 
-func isURL(rawURL string) bool {
+func IsURL(rawURL string) bool {
 	if u, err := url.Parse(rawURL); err == nil {
 		return (u.Scheme == "http" || u.Scheme == "https")
 	} else {
