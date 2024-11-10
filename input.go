@@ -315,14 +315,6 @@ func IsFile(path string) bool {
 	}
 }
 
-func IsFileWithErr(path string) (bool, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-	return info.Mode().IsRegular(), nil
-}
-
 func IsDir(path string) bool {
 	if info, err := os.Stat(path); err == nil {
 		return info.Mode().IsDir()
