@@ -2,8 +2,11 @@
 
 # Combining Split Files
 
-Use `cat` command-line utility in unix base systems and `type` in windows base systems.
-folddlowing instructions apply to both systems. 
+`cat` is a command-line utility in Unix-based systems used to combine files. The `type`
+command in PowerShell on Windows-based systems performs the same function as `cat`. In
+PowerShell, `cat` is also an alias for `type`. So, the following guide applies to both
+systems. If you'd like use other software, refer to the manual of the software of your
+choice.
 
 ### Files in the same directory.
 
