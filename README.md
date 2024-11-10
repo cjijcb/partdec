@@ -89,7 +89,7 @@ Output File States:
     downloading. 
 ```
 
-# Combining Spit Files
+# Combining Split Files
 
 You can use `cat` command-line utility in unix base systems and `type` in windows base systems.
 folddlowing instructions apply to both systems. 
@@ -105,13 +105,18 @@ Examples:
 cat archive.zip_* > my_archive.zip
 ```
 ```bash
-cat archive.zip_* > ~/Downloads/my_archive.zip
+cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
+```
+### combining output files that are in multiple directories
+
+```bash
+  cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
+```
+Examples:
+
+```bash
+cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
 ```
 ```bash
-cat /tmp/archive.zip_* > my_archive.zip
+cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 ```
-
-
-### combining output files that are in different directories
-
-    `cat <DIR1><FILENAME>_* <DIR2><FILENAME>_* ... > <NEWFILENAME>
