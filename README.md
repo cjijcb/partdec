@@ -2,7 +2,9 @@
 
 # Combining Split Files
 
-`cat` is a command-line utility in Unix-based systems that can be used to combine files. The following guide also works in the PowerShell terminal on Windows systems. If you'd like to use other software, refer to the manual of the software of your choice.
+`cat` is a command-line utility in Unix-based systems that can be used to combine files. The
+following guide also works in the PowerShell terminal on Windows systems. If you'd like to
+use other software, refer to the manual of the software of your choice.
 
 ### Files in the same directory
 
