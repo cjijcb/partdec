@@ -127,7 +127,7 @@ func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 	return fio, nil
 }
 
-func (fio *FileIO) DataCast(br ByteRange) (io.Reader, error) {
+func (fio *FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 	rangeStart := br.Start + br.Offset
 	rangeEnd := br.End
@@ -140,7 +140,7 @@ func (fio *FileIO) DataCast(br ByteRange) (io.Reader, error) {
 
 	r := io.NewSectionReader(fio, rangeStart, rangeEnd)
 
-	return r, nil
+	return io.NopCloser(r), nil
 
 }
 
