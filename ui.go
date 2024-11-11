@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"golang.org/x/term"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 	"unicode/utf8"
 )
@@ -137,7 +135,7 @@ func (tl *Textile) ShowReport(fr *FileReport) string {
 
 		fmt.Fprintf(tl,
 			"%-9s->%11s/%-11s| %-*s\n",
-			fio.State.String(),
+			fio.PullState().String(),
 			ToEIC(size),
 			ToEIC(partSize),
 			pad,
@@ -236,17 +234,6 @@ func (fr *FileReport) Elapsed() string {
 	}
 
 	return report
-}
-
-func Interrupt() <-chan os.Signal {
-	sigCh := make(chan os.Signal)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		sig := <-sigCh
-		sigCh <- sig
-	}()
-
-	return sigCh
 }
 
 func ToEIC(b int64) string {

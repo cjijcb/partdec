@@ -22,7 +22,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 )
 
@@ -46,12 +45,6 @@ type (
 		UserHeader http.Header
 		ConnReuse  bool
 		O_FLAGS    int
-	}
-	FlowControl struct {
-		WG      *sync.WaitGroup
-		Limiter chan struct{}
-		Acquire func(chan<- struct{}) <-chan struct{}
-		Release func(<-chan struct{})
 	}
 
 	DLOptions struct {
@@ -77,7 +70,6 @@ type (
 		ReDL     map[FileState]bool
 		UI       func(*Download)
 		Cancel   context.CancelFunc
-		Mtx      sync.RWMutex
 		*IOMode
 	}
 
@@ -208,9 +200,7 @@ func (d *Download) fetch(ctx context.Context, ep *EndPoint, errCh chan<- error) 
 		return
 	}
 
-	d.Mtx.Lock()
-	fio.State = Completed
-	d.Mtx.Unlock()
+	fio.PushState(Completed)
 	errCh <- nil
 
 }
@@ -401,24 +391,6 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) {
 
 }
 
-func NewFlowControl(limit int) *FlowControl {
-
-	limiter := make(chan struct{}, limit)
-	acq := func(l chan<- struct{}) <-chan struct{} {
-		succeed := make(chan struct{})
-		l <- struct{}{}
-		close(succeed)
-		return succeed
-	}
-	rls := func(l <-chan struct{}) { <-l }
-
-	return &FlowControl{
-		WG:      &sync.WaitGroup{},
-		Limiter: limiter,
-		Acquire: acq,
-		Release: rls,
-	}
-}
 
 func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
@@ -460,9 +432,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 }
 
 func (d *Download) SetStatus(ds DLStatus) {
-	d.Mtx.Lock()
-	defer d.Mtx.Lock()
-	d.Status = ds
+    d.Status = ds
 }
 
 func (dcs DataCasters) Close() error {
