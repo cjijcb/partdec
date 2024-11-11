@@ -131,7 +131,7 @@ func (d *Download) Start() error {
 
 	d.Flow.WG.Wait()
 	d.Status = Stopped
-	return JoinErr(fetchErr, d.Files.Close(), d.Sources.Close())
+	return fetchErr
 }
 
 func (d *Download) Fetch(ctx context.Context, errCh chan error) {
