@@ -75,7 +75,7 @@ func ShowProgress(d *Download) {
 
 	fmt.Print(hideCursor)
 	var resetDisplay string
-	for d.Status == Pending || d.Status == Running {
+	for d.PullStatus() == Pending || d.PullStatus() == Running {
 
 		select {
 		case sig = <-interrSig:
