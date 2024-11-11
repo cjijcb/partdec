@@ -42,7 +42,7 @@ type (
 		Oflag  int
 		Perm   os.FileMode
 		isOpen bool
-        qState [2]FileState
+		qState [2]FileState
 	}
 
 	FileIOs []*FileIO
@@ -435,20 +435,21 @@ func (fio *FileIO) Close() error {
 }
 
 func (fio *FileIO) PullState() FileState {
-    
-    s := fio.qState[1]
-    fio.qState[1] = fio.qState[0]
-    return s
+
+	mtx.Lock()
+	defer mtx.Unlock()
+	s := fio.State
+	return s
 
 }
 
 func (fio *FileIO) PushState(fs FileState) {
-    
-    fio.qState[0] = fs
-    fio.State = fs
+
+	mtx.Lock()
+	defer mtx.Unlock()
+	fio.State = fs
 
 }
-
 
 func (fios FileIOs) Close() error {
 

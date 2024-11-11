@@ -391,7 +391,6 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) {
 
 }
 
-
 func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 	var (
@@ -432,7 +431,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 }
 
 func (d *Download) SetStatus(ds DLStatus) {
-    d.Status = ds
+	d.Status = ds
 }
 
 func (dcs DataCasters) Close() error {
