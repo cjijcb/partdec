@@ -77,7 +77,7 @@ func NewClient() *http.Client {
 	return ct
 }
 
-func (wbio *WebIO) DataCast(br ByteRange) (io.Reader, error) {
+func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 	if !br.isFullRange { //overwrite Range header when there's partitioning
 		wbio.Request.Header.Set("Range", BuildRangeHeader(br))

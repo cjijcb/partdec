@@ -27,7 +27,7 @@ import (
 
 type (
 	DataCaster interface {
-		DataCast(ByteRange) (io.Reader, error)
+		DataCast(ByteRange) (io.ReadCloser, error)
 		Close() error
 		IsOpen() bool
 	}
@@ -71,11 +71,6 @@ type (
 		UI       func(*Download)
 		Cancel   context.CancelFunc
 		*IOMode
-	}
-
-	ctxReader struct {
-		ctx context.Context
-		r   io.Reader
 	}
 )
 
@@ -189,7 +184,7 @@ func (d *Download) fetch(ctx context.Context, ep *EndPoint, errCh chan<- error) 
 		return
 	}
 
-	_, err = fio.ReadFrom(newCtxReader(ctx, r))
+	err = CopyX(ctx, fio, r)
 	if err != nil {
 		if IsErr(err, context.Canceled) {
 			errCh <- ErrCancel
@@ -456,18 +451,18 @@ func (dcs DataCasters) Close() error {
 
 }
 
-func (r *ctxReader) Read(p []byte) (int, error) {
-	select {
-	case <-r.ctx.Done():
-		return 0, r.ctx.Err()
-	default:
-		return r.r.Read(p)
-	}
-}
+func CopyX(ctx context.Context, w io.WriteCloser, r io.ReadCloser) (err error) {
 
-func newCtxReader(ctx context.Context, r io.Reader) *ctxReader {
-	return &ctxReader{
-		ctx: ctx,
-		r:   r,
+	go func() {
+
+		<-ctx.Done()
+		r.Close()
+		w.Close()
+	}()
+	_, err = io.Copy(w, r)
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
+	return err
+
 }
