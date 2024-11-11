@@ -17,42 +17,40 @@ limitations under the License.
 package partdec
 
 import (
+	"os"
+	"os/signal"
 	"sync"
-    "os"
-    "os/signal"
-    "syscall"
+	"syscall"
 )
-	
 
 type (
-
-    FlowControl struct {
+	FlowControl struct {
 		WG      *sync.WaitGroup
 		Limiter chan struct{}
 		Acquire func(chan<- struct{}) <-chan struct{}
 		Release func(<-chan struct{})
 	}
-
 )
 
+var mtx = &sync.RWMutex{}
 
 func NewFlowControl(limit int) *FlowControl {
 
-    limiter := make(chan struct{}, limit)
-    acq := func(l chan<- struct{}) <-chan struct{} {
-        succeed := make(chan struct{})
-        l <- struct{}{}
-        close(succeed)
-        return succeed
-    }
-    rls := func(l <-chan struct{}) { <-l }
+	limiter := make(chan struct{}, limit)
+	acq := func(l chan<- struct{}) <-chan struct{} {
+		succeed := make(chan struct{})
+		l <- struct{}{}
+		close(succeed)
+		return succeed
+	}
+	rls := func(l <-chan struct{}) { <-l }
 
-    return &FlowControl{
-        WG:      &sync.WaitGroup{},
-        Limiter: limiter,
-        Acquire: acq,
-        Release: rls,
-    }
+	return &FlowControl{
+		WG:      &sync.WaitGroup{},
+		Limiter: limiter,
+		Acquire: acq,
+		Release: rls,
+	}
 }
 
 func Interrupt() <-chan os.Signal {
@@ -66,4 +64,3 @@ func Interrupt() <-chan os.Signal {
 
 	return sigCh
 }
-
