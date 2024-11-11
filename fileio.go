@@ -438,8 +438,7 @@ func (fio *FileIO) PullState() FileState {
 
 	mtx.Lock()
 	defer mtx.Unlock()
-	s := fio.State
-	return s
+	return fio.State
 
 }
 

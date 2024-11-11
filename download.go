@@ -95,7 +95,7 @@ func (d *Download) Start() error {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(JoinErr(ToErr(r), d.Files.Close(), d.Sources.Close()))
-			d.SetStatus(Stopped)
+			d.PushStatus(Stopped)
 		}
 	}()
 
@@ -110,7 +110,7 @@ func (d *Download) Start() error {
 		go d.UI(d)
 	}
 
-	d.SetStatus(Running)
+	d.PushStatus(Running)
 	partCount := len(d.Files)
 	errCh := make(chan error, partCount)
 
@@ -121,10 +121,10 @@ func (d *Download) Start() error {
 		d.Cancel()
 	}
 
-	d.SetStatus(Stopping)
+	d.PushStatus(Stopping)
 
 	d.Flow.WG.Wait()
-	d.SetStatus(Stopped)
+	d.PushStatus(Stopped)
 	return fetchErr
 }
 
@@ -171,13 +171,13 @@ func (d *Download) fetch(ctx context.Context, ep *EndPoint, errCh chan<- error) 
 	defer fio.Close()
 
 	if err := fio.Open(); err != nil {
-		fio.State = Broken
+		fio.PushState(Broken)
 		errCh <- err
 		return
 	}
 
 	if _, err := fio.Seek(0, io.SeekEnd); err != nil {
-		fio.State = Broken
+		fio.PushState(Broken)
 		errCh <- err
 		return
 	}
@@ -195,7 +195,7 @@ func (d *Download) fetch(ctx context.Context, ep *EndPoint, errCh chan<- error) 
 			errCh <- ErrCancel
 		} else {
 			errCh <- err
-			fio.State = Broken
+			fio.PushState(Broken)
 		}
 		return
 	}
@@ -430,7 +430,17 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 }
 
-func (d *Download) SetStatus(ds DLStatus) {
+func (d *Download) PullStatus() DLStatus {
+
+	mtx.Lock()
+	defer mtx.Unlock()
+	return d.Status
+}
+
+func (d *Download) PushStatus(ds DLStatus) {
+
+	mtx.Lock()
+	defer mtx.Unlock()
 	d.Status = ds
 }
 
