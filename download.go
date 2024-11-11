@@ -77,6 +77,7 @@ type (
 		ReDL     map[FileState]bool
 		UI       func(*Download)
 		Cancel   context.CancelFunc
+		Mtx      sync.RWMutex
 		*IOMode
 	}
 
@@ -102,7 +103,7 @@ func (d *Download) Start() error {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(JoinErr(ToErr(r), d.Files.Close(), d.Sources.Close()))
-			d.Status = Stopped
+			d.SetStatus(Stopped)
 		}
 	}()
 
@@ -117,7 +118,7 @@ func (d *Download) Start() error {
 		go d.UI(d)
 	}
 
-	d.Status = Running
+	d.SetStatus(Running)
 	partCount := len(d.Files)
 	errCh := make(chan error, partCount)
 
@@ -127,10 +128,11 @@ func (d *Download) Start() error {
 	if fetchErr = CatchErr(errCh, partCount); fetchErr != nil {
 		d.Cancel()
 	}
-	d.Status = Stopping
+
+	d.SetStatus(Stopping)
 
 	d.Flow.WG.Wait()
-	d.Status = Stopped
+	d.SetStatus(Stopped)
 	return fetchErr
 }
 
@@ -159,14 +161,14 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 
 		<-d.Flow.Acquire(d.Flow.Limiter)
 		d.Flow.WG.Add(1)
-		go fetch(ctx, &EndPoint{dc, fio}, d.Flow, errCh)
+		go d.fetch(ctx, &EndPoint{dc, fio}, errCh)
 	}
 }
 
-func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- error) {
+func (d *Download) fetch(ctx context.Context, ep *EndPoint, errCh chan<- error) {
 	defer func() {
-		fc.WG.Done()
-		fc.Release(fc.Limiter)
+		d.Flow.WG.Done()
+		d.Flow.Release(d.Flow.Limiter)
 		if r := recover(); r != nil {
 			errCh <- ToErr(r)
 		}
@@ -206,7 +208,9 @@ func fetch(ctx context.Context, ep *EndPoint, fc *FlowControl, errCh chan<- erro
 		return
 	}
 
+	d.Mtx.Lock()
 	fio.State = Completed
+	d.Mtx.Unlock()
 	errCh <- nil
 
 }
@@ -453,6 +457,12 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 		return nil, ErrExhaust
 	}
 
+}
+
+func (d *Download) SetStatus(ds DLStatus) {
+	d.Mtx.Lock()
+	defer d.Mtx.Lock()
+	d.Status = ds
 }
 
 func (dcs DataCasters) Close() error {
