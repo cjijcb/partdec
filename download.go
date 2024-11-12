@@ -286,7 +286,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	return &Download{
 		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxFetch),
+		Sources:  make([]DataCaster, 2*MaxFetch), //ring buffer
 		URI:      opt.URI,
 		DataSize: cl,
 		Type:     Online,
@@ -331,7 +331,7 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
 	return &Download{
 		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxFetch),
+		Sources:  make([]DataCaster, 2*MaxFetch), //ring buffer
 		URI:      opt.URI,
 		DataSize: dataSize,
 		Type:     Local,
