@@ -1,7 +1,12 @@
 # TODO
 
 ### Demo
-![demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/0-demo.gif) 
+![0-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/0-demo.gif) 
+
+![1-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/1-demo.gif) 
+
+![2-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/2-demo.gif) 
+
 
 ## Combining Split Files
 
