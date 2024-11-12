@@ -1,6 +1,6 @@
 # TODO
 
-##Demo
+### Demo
 ![demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/demo.gif) 
 
 ## Combining Split Files
