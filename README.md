@@ -1,6 +1,9 @@
 # TODO
 
-# Combining Split Files
+##Demo
+![demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/demo.gif) 
+
+## Combining Split Files
 
 `cat` is a command-line utility in Unix-based systems that can be used to combine files. The
 following guide also works in the PowerShell terminal on Windows systems. If you'd like to
@@ -38,7 +41,7 @@ Notes: The order of the paths is **EXTREMELY IMPORTANT**. They should be in asce
 based on the numeric suffix of the files, from left (lowest numeric suffix) to right
 (highest numeric suffix).
 
-# Command-Line Usage
+## Command-Line Usage
 ```
 Usage: partdec [OPTIONS]... <URL|LOCAL PATH>
 Seamlessly split files from the web or local storage. 
