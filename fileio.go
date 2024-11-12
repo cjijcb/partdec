@@ -42,7 +42,6 @@ type (
 		Oflag  int
 		Perm   os.FileMode
 		isOpen bool
-		qState [2]FileState
 	}
 
 	FileIOs []*FileIO
@@ -425,11 +424,11 @@ func (fio *FileIO) IsOpen() bool {
 
 func (fio *FileIO) Close() error {
 
+	fio.isOpen = false
 	if fio.File != nil {
 		if err := fio.File.Close(); err != nil {
 			return err
 		}
-		fio.isOpen = false
 	}
 	return nil
 }
