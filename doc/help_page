@@ -17,7 +17,7 @@ Options:
     Suffixes are case-insensitive.
 
   -b, -base <PATH>
-    Set the base path for output files and also rename them.
+    Set the base path for output files and also set their filename.
     For multiple output files, an _N suffix is added, where N is an incrementing
     number starting from 1.
     
