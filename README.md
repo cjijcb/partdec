@@ -69,11 +69,12 @@ cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 ## Command-Line Usage
 
 Basic Options:
-* -p &lt;N&gt;&emsp;&emsp;&ensp;&nbsp;Split the file into `N` parts.
-* -s &lt;SIZE&gt;&emsp;&ensp;Split the file into parts based on `SIZE`.
-* -b &lt;PATH&gt;&emsp;Set the base path for output files and also set their filename.
-* -d &lt;PATH&gt;&emsp;Set the destination directory for output files. Can be used multiple times.
-
+```
+  -p <N>     Split the file into N parts.
+  -s <SIZE>  Split the file into parts based on SIZE.
+  -b <PATH>  Set the base path for output files and also set their filename.
+  -d <PATH>  Set the destination directory for output files. Can be used multiple times.
+```
 
 <details>
 <summary><strong>See full details ...</strong></summary>
