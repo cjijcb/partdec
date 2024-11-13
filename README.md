@@ -3,26 +3,28 @@
 ## Demo
 ![0-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/0-demo.gif) 
 
-![1-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/1-demo.gif) 
+<details>
+<summary><strong>See more ...</strong></summary>
+<img src="https://github.com/cjijcb/partdec/blob/master/doc/gif/1-demo.gif">
+<img src="https://github.com/cjijcb/partdec/blob/master/doc/gif/2-demo.gif"> 
+</details>
 
-![2-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/2-demo.gif) 
 
 ## Installation
 
 > [!NOTE]
 > For installation, `go` version 1.22 or later is required.
 
-Download latest release package and unpack it:
+To build the partdec binary, download the latest [release](https://github.com/cjijcb/partdec/releases) source code archive, extract it, then run:
 ```bash
 cd partdec/
-go build -o <PATH> cmd/partdec/partdec.go  #Replace <PATH> with the path where the binary file goes
+go build -o <PATH> cmd/partdec/partdec.go  # Replace <PATH> with the path where the binary file goes
 ```
 
-Or, install with `go`:
+Or, just install it:
 ```bash
 go install github.com/cjijcb/partdec/cmd/partdec@latest
 ```
-
 
 
 ## Combining Split Files
