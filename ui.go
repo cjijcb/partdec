@@ -52,11 +52,11 @@ const (
 	hideCursor = string(ESC) + "[?25l"
 	showCursor = string(ESC) + "[?25h"
 	homeCursor = string(ESC) + "[H"
+	Div        = "----------------------------------------"
 )
 
 var (
-	Div    string = strings.Repeat("-", safeWidth)
-	upLine        = func(n int) string { return fmt.Sprintf("%c[%dF", ESC, n) }
+	upLine = func(n int) string { return fmt.Sprintf("%c[%dF", ESC, n) }
 )
 
 func ShowProgress(d *Download) {

@@ -38,10 +38,10 @@ func NewFlowControl(limit int) *FlowControl {
 
 	limiter := make(chan struct{}, limit)
 	acq := func(l chan<- struct{}) <-chan struct{} {
-		succeed := make(chan struct{})
+		acquired := make(chan struct{})
 		l <- struct{}{}
-		close(succeed)
-		return succeed
+		close(acquired)
+		return acquired
 	}
 	rls := func(l <-chan struct{}) { <-l }
 
