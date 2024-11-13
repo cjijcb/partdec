@@ -1,11 +1,28 @@
 # TODO
 
-### Demo
+## Demo
 ![0-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/0-demo.gif) 
 
 ![1-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/1-demo.gif) 
 
 ![2-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/2-demo.gif) 
+
+## Installation
+
+> [!NOTE]
+> For installation, `go` version 1.22 or later is required.
+
+Download latest release package and unpack it:
+```bash
+cd partdec/
+go build -o <PATH> cmd/partdec/partdec.go  #Replace <PATH> with the path where the binary file goes
+```
+
+Or, install with `go`:
+```bash
+go install github.com/cjijcb/partdec/cmd/partdec@latest
+```
+
 
 
 ## Combining Split Files
@@ -27,8 +44,8 @@ cat archive.zip_* > my_archive.zip
 ```bash
 cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
 ```
-Notes:
-`<FILENAME>` is the filename without `_N` suffix. 
+> [!NOTE]
+> `<FILENAME>` is the filename without `_N` suffix. 
 
 ### Files in multiple directories
 Sypnosis:
@@ -42,9 +59,10 @@ cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
 ```bash
 cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 ```
-Notes: The order of the paths is **EXTREMELY IMPORTANT**. They should be in ascending order
-based on the numeric suffix of the files, from left (lowest numeric suffix) to right
-(highest numeric suffix).
+> [!IMPORTANT] 
+>The order of the paths is **VERY IMPORTANT**. The paths must be in ascending order
+>based on the numeric suffix of the files, from left (lowest numeric suffix) to right
+>(highest numeric suffix).
 
 ## Command-Line Usage
 ```
