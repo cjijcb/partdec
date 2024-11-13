@@ -74,17 +74,21 @@ cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 >(highest numeric suffix).
 
 ## Command-Line Usage
-```
-Usage: partdec [OPTIONS]... <URL|LOCAL PATH>
+<details>
+<summary>See full details ...</summary>
+
+
+<pre>
+Usage: partdec [OPTIONS]... &lt;URL|LOCAL PATH&gt;
 Seamlessly split files from the web or local storage. 
 
 Options:
-  -p, -part <N>
+  -p, -part &lt;N&gt;
     Split the file into N parts.
     If N is zero or less, it defaults to 1.
     If -s/-size is used, this option is ignored.
 
-  -s, -size <SIZE>
+  -s, -size &lt;SIZE&gt;
     Split the file into parts based on SIZE.
     SIZE is an integer (representing byte size) and can be followed by one of the
     following suffixes:
@@ -93,22 +97,22 @@ Options:
     Multipliers follow SI and IEC unit standards.
     Suffixes are case-insensitive.
 
-  -b, -base <PATH>
+  -b, -base &lt;PATH&gt;
     Set the base path for output files and also rename them.
     For multiple output files, an _N suffix is added, where N is an incrementing
     number starting from 1.
     
-  -d, -dir <PATH>
+  -d, -dir &lt;PATH&gt;
     Set the destination directory for output files.
     Can be used multiple times to set multiple directories.
     The base path is combined with each specified directory (dir + base path).
      
-  -t, timeout <TIME>
+  -t, timeout &lt;TIME&gt;
     Set the HTTP connection timeout. TIME is an integer (representing seconds) and can
     be followed by the suffix s, m, or h for seconds, minutes, and hours, respectively
     (e.g., -t 1h2m3s). The default is 0, meaning no timeout.
 
-  -H, -header <HEADER_NAME:VALUE>
+  -H, -header &lt;HEADER_NAME:VALUE&gt;
     Set or add an HTTP header.
     Can be used multiple times to set or add multiple headers. The Range header is
     ignored in multipart web downloads.
@@ -157,5 +161,6 @@ Output File States:
 
     A file with the [unknown] state is always truncated to 0 size on every run with the
     same arguments. This state occurs when a web server does not support multipart
-    downloading. 
-```
+    downloading.
+  </pre>
+</details>
