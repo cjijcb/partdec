@@ -20,7 +20,7 @@ Install it with `go`:
 go install github.com/cjijcb/partdec/cmd/partdec@latest
 ```
 
-Or, to build the partdec binary, download the latest [release](https://github.com/cjijcb/partdec/releases) source code archive, extract it, then run:
+Or, to build the binary, download the latest [release](https://github.com/cjijcb/partdec/releases) source code archive, extract it, then run:
 ```bash
 cd partdec/
 go build -o <PATH> cmd/partdec/partdec.go  # Replace <PATH> with the path where the binary file goes
