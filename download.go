@@ -89,7 +89,8 @@ const (
 func (d *Download) Start() error {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println(JoinErr(ToErr(r), d.Files.Close(), d.Sources.Close()))
+			fmt.Fprintf(os.Stderr, "%s\n",
+				JoinErr(ToErr(r), d.Files.Close(), d.Sources.Close()))
 			d.PushStatus(Stopped)
 		}
 	}()
