@@ -40,11 +40,11 @@ go build -o <PATH> cmd/partdec/partdec.go  # Replace <PATH> with the path where 
 following guide also works in the PowerShell terminal on Windows systems. If you'd like to
 use other software, refer to the manual of the software of your choice.
 
-### Files in the same directory
+### Files in the same or multiple directories.
 
 Sypnosis:
 ```
-cat [PATH]<FILENAME>_* > [PATH]<NEWFILENAME>
+cat [PATH]<FILENAME>_* ... > [PATH]<NEWFILENAME>
 ```
 Examples:
 ```bash
@@ -53,29 +53,22 @@ cat archive.zip_* > my_archive.zip
 ```bash
 cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
 ```
-> [!NOTE]
-> `<FILENAME>` is the filename without `_N` suffix. 
-
-### Files in multiple directories
-Sypnosis:
-```
-cat <PATH><FILENAME>_* ... > [PATH]<NEWFILENAME>
-```
-Examples:
 ```bash
 cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
 ```
 ```bash
 cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 ```
+> [!NOTE]
+> `<FILENAME>` is the filename without `_N` suffix. 
+
 > [!IMPORTANT] 
->The order of the paths is **VERY IMPORTANT**. The paths must be in ascending order
->based on the numeric suffix of the files, from left (lowest numeric suffix) to right
->(highest numeric suffix).
+>The paths must be in ascending order based on the numeric suffix of the files,
+>from left (lowest numeric suffix) to right highest numeric suffix).
 
 ## Command-Line Usage
 <details>
-<summary>See full details ...</summary>
+<summary><strong>See full details ...</strong></summary>
 
 
 <pre>
