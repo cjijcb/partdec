@@ -1,4 +1,10 @@
-# TODO
+# partdec
+
+## Description
+partdec – is a command-line utility for multipart downloading and file splitting. It can seamlessly split a file from the web or local storage and distribute parts of the file to multiple destination paths.
+
+In web downloading, partdec allows a dedicated connection per output file and is designed to handle interruptions safely, allowing for resumable downloads.
+
 
 ## Demo
 ![0-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/0-demo.gif) 
