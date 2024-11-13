@@ -15,15 +15,15 @@
 > [!NOTE]
 > For installation, `go` version 1.22 or later is required.
 
-To build the partdec binary, download the latest [release](https://github.com/cjijcb/partdec/releases) source code archive, extract it, then run:
+Install it with `go`:
+```bash
+go install github.com/cjijcb/partdec/cmd/partdec@latest
+```
+
+Or, to build the partdec binary, download the latest [release](https://github.com/cjijcb/partdec/releases) source code archive, extract it, then run:
 ```bash
 cd partdec/
 go build -o <PATH> cmd/partdec/partdec.go  # Replace <PATH> with the path where the binary file goes
-```
-
-Or, just install it:
-```bash
-go install github.com/cjijcb/partdec/cmd/partdec@latest
 ```
 
 
