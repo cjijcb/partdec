@@ -64,12 +64,19 @@ cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 
 > [!IMPORTANT] 
 >The paths must be in ascending order based on the numeric suffix of the files,
->from left (lowest numeric suffix) to right highest numeric suffix).
+>from left (lowest numeric suffix) to (right highest numeric suffix).
 
 ## Command-Line Usage
+
+Basic Options:
+* -p &lt;N&gt;&emsp;&emsp;&ensp;&nbsp;Split the file into `N` parts.
+* -s &lt;SIZE&gt;&emsp;&ensp;Split the file into parts based on `SIZE`.
+* -b &lt;PATH&gt;&emsp;Set the base path for output files. Can be used to rename them.
+* -d &lt;PATH&gt;&emsp;Set the destination directory for output files. Can be used multiple times.
+
+
 <details>
 <summary><strong>See full details ...</strong></summary>
-
 
 <pre>
 Usage: partdec [OPTIONS]... &lt;URL|LOCAL PATH&gt;
