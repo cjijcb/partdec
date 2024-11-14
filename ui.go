@@ -44,15 +44,12 @@ type (
 )
 
 const (
-	ESC rune = 27
-
-	safeWidth = 40
-
-	clearToEnd = string(ESC) + "[0J"
-	hideCursor = string(ESC) + "[?25l"
-	showCursor = string(ESC) + "[?25h"
-	homeCursor = string(ESC) + "[H"
-	Div        = "----------------------------------------"
+	ESC        rune = 27
+	clearToEnd      = string(ESC) + "[0J"
+	hideCursor      = string(ESC) + "[?25l"
+	showCursor      = string(ESC) + "[?25h"
+	homeCursor      = string(ESC) + "[H"
+	Div             = "----------------------------------------"
 )
 
 var (
