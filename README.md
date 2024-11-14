@@ -171,6 +171,6 @@ Contributions are welcome from anyone interested in helping improve partdec. If 
 * Create a [GitHub issue](https://github.com/cjijcb/partdec/issues) to discuss improvement suggestions.
 
 ## License
-Copyright (c) 2024 Carlo Jay I. Jacaba
+Copyright (C) 2024 Carlo Jay I. Jacaba
 
 partdec is licensed under the Apache License, Version 2.0. See the [LICENSE](https://github.com/cjijcb/partdec/blob/master/LICENSE) file for details.
