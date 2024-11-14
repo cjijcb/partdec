@@ -3,8 +3,8 @@
 seamlessly split a file from the web or local storage and distribute parts of the file to
 multiple destination paths.
 
-In web downloading, partdec allows a dedicated connection per output file and is designed to
-handle interruptions safely, allowing for resumable downloads. It supports HTTP and HTTPS.
+In web downloading, partdec allows a dedicated connection per output file and handles interruptions safely,
+allowing for resumable downloads. It supports HTTP and HTTPS.
 
 
 ## Demo
@@ -160,11 +160,16 @@ Output File States:
 
     A file with the [unknown] state is always truncated to 0 size on every run with the
     same arguments. This state occurs when a web server does not support multipart
-    downloading.
-  </pre>
+    downloading. </pre>
 </details>
+
+## Contributing
+Contributions are welcome from anyone interested in helping improve partdec. If you’d like to contribute:
+
+* Create a [GitHub pull request](https://github.com/cjijcb/partdec/pulls) if you find any bugs, and provide clear descriptions.
+* Create a [GitHub issue](https://github.com/cjijcb/partdec/issues) to discuss improvement suggestions.
 
 ## License
 Copyright (c) 2024 Carlo Jay I. Jacaba
 
-All code is licensed under the Apache 2.0 License. See the [LICENSE](https://github.com/cjijcb/partdec/blob/master/LICENSE) file for details.
+partdec is licensed under the Apache License, Version 2.0. See the [LICENSE](https://github.com/cjijcb/partdec/blob/master/LICENSE) file for details.
