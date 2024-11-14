@@ -29,9 +29,10 @@ go install github.com/cjijcb/partdec/cmd/partdec@latest
 
 Or, to build the binary, download the latest [release](https://github.com/cjijcb/partdec/releases) source code archive, extract it, then run:
 ```bash
-cd partdec/
-go build -o <PATH> cmd/partdec/partdec.go  # Replace <PATH> with the path where the binary file goes
+cd <PATH>  # Replace <PATH> with the path where the extracted folder is located.
+go build -o <BINPATH> cmd/partdec/partdec.go  # Replace <BINPATH> with the path where the binary file should go
 ```
+
 
 
 ## Combining Split Files
@@ -52,9 +53,6 @@ cat archive.zip_* > my_archive.zip
 ```
 ```bash
 cat /tmp/archive.zip_* > ~/Downloads/my_archive.zip
-```
-```bash
-cat /tmp/archive.zip_* /var/archive.zip_* > my_archive.zip
 ```
 ```bash
 cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
@@ -165,3 +163,8 @@ Output File States:
     downloading.
   </pre>
 </details>
+
+## License
+Copyright (c) 2024 Carlo Jay I. Jacaba
+
+All code is licensed under the Apache 2.0 License. See the [LICENSE](https://github.com/cjijcb/partdec/blob/master/LICENSE) file for details.
