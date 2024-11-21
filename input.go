@@ -315,12 +315,11 @@ func IsFile(path string) bool {
 	}
 }
 
-func IsDir(path string) bool {
-	if info, err := os.Stat(path); err == nil {
-		return info.Mode().IsDir()
-	} else {
-		return false
-	}
+func IsEndSeparator(path string) bool {
+
+	path = strings.TrimSpace(path)
+
+	return path[len(path)-1:] == PathSeparator
 }
 
 func IsURL(rawURL string) bool {
