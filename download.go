@@ -274,10 +274,10 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	basePath := opt.BasePath
 	switch {
-	case IsDir(basePath):
-		basePath += PathSeparator + NewFileName(opt.URI, hdr)
 	case basePath == "":
 		basePath = NewFileName(opt.URI, hdr)
+	case IsEndSeparator(basePath):
+		basePath += NewFileName(opt.URI, hdr)
 	}
 
 	fios, err := BuildFileIOs(opt.PartCount, basePath, opt.DstDirs)
@@ -319,10 +319,10 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
 	basePath := opt.BasePath
 	switch {
-	case IsDir(basePath):
-		basePath += PathSeparator + NewFileName(opt.URI, nil)
 	case basePath == "":
 		basePath = NewFileName(opt.URI, nil)
+	case IsEndSeparator(basePath):
+		basePath += NewFileName(opt.URI, nil)
 	}
 
 	fios, err := BuildFileIOs(opt.PartCount, basePath, opt.DstDirs)

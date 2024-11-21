@@ -57,14 +57,13 @@ const (
 	FilePerm os.FileMode = 0644
 
 	UnknownSize   = -1
-	CurrentDir    = "."
 	PathSeparator = string(os.PathSeparator)
 )
 
 func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
 
 	if dstDirs == nil {
-		dstDirs = []string{CurrentDir}
+		dstDirs = []string{""}
 	}
 
 	fios := make([]*FileIO, partCount)
@@ -101,9 +100,14 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 
-	basePath = filepath.Clean(basePath)
-	dstDir = filepath.Clean(dstDir) + PathSeparator
-	relvPath := filepath.Clean(dstDir + basePath)
+	var relvPath string
+
+	switch {
+	case dstDir == "":
+		relvPath = filepath.Clean(basePath)
+	default:
+		relvPath = filepath.Clean(dstDir + PathSeparator + basePath)
+	}
 
 	f, err := os.OpenFile(relvPath, oflag, FilePerm)
 
