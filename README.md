@@ -113,7 +113,7 @@ Options:
             or hours, respectively (e.g., -t 1h2m3s).
             The default is 0, meaning no timeout.
   
-  -x, --no-keepalive
+  -x, --no-connection-reuse
             Disable the HTTP Keep-Alive or connection reuse. This ensures a
             separate connection per output file in multipart HTTP(S)
             downloads.
