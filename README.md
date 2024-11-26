@@ -11,12 +11,12 @@ allowing for resumable downloads. It supports HTTP and HTTPS.
 
 
 ## Demo
-![0-demo](https://github.com/cjijcb/partdec/blob/master/doc/gif/0-demo.gif) 
+![0-demo](https://github.com/cjijcb/partdec/blob/master/assets/0-demo.gif) 
 
 <details>
 <summary><strong>See more ...</strong></summary>
-<img src="https://github.com/cjijcb/partdec/blob/master/doc/gif/1-demo.gif">
-<img src="https://github.com/cjijcb/partdec/blob/master/doc/gif/2-demo.gif"> 
+<img src="https://github.com/cjijcb/partdec/blob/master/assets/1-demo.gif">
+<img src="https://github.com/cjijcb/partdec/blob/master/assets/2-demo.gif"> 
 </details>
 
 
