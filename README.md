@@ -108,13 +108,13 @@ Options:
             directory is combined with the base path (dir + base path).
 
   -t, --timeout &lt;TIME&gt;
-            Set the HTTP connection timeout. TIME is in seconds or can be
-            followed by the suffix s, m, or h for seconds, minutes, and hours,
-            respectively (e.g., -t 1h2m3s). The default is 0, meaning no
-            timeout.
-
+            Set the HTTP request timeout. TIME is a number followed by a
+            suffix: ms, s, m, or h to represent milliseconds, seconds, minutes,
+            or hours, respectively (e.g., -t 1h2m3s).
+            The default is 0, meaning no timeout.
+  
   -x, --no-keepalive
-            Disable HTTP Keep-Alive or connection reuse. This ensures a
+            Disable the HTTP Keep-Alive or connection reuse. This ensures a
             separate connection per output file in multipart HTTP(S)
             downloads.
 
