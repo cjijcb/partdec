@@ -18,8 +18,8 @@ package partdec
 
 import (
 	_ "embed"
-	"flag" //not the best
 	"fmt"
+	flag "github.com/spf13/pflag"
 	"io"
 	"net/http"
 	"net/url"
@@ -35,7 +35,6 @@ type (
 		http.Header
 	}
 
-	Paths    []string
 	ByteSize int64
 )
 
@@ -51,10 +50,10 @@ const (
 	Tera = 1000 * 1000 * 1000 * 1000
 )
 
-//go:embed doc/version_page
+//go:embed docs/version_page
 var VersionPage string
 
-//go:embed doc/help_page
+//go:embed docs/help_page
 var HelpPage string
 
 var (
@@ -62,8 +61,8 @@ var (
 	BaseFlag          string
 	SizeFlag          ByteSize
 	TimeoutFlag       time.Duration
-	HeaderFlag        Header
-	DirFlag           Paths
+	HeaderFlag        Header = Header{make(http.Header)}
+	DirFlag           []string
 	ZeroResumeFlag    bool
 	ZeroCompletedFlag bool
 	ZeroBrokenFlag    bool
@@ -148,37 +147,22 @@ func InitArgs(fs *flag.FlagSet) {
 	fs.SetOutput(io.Discard)
 	fs.Usage = func() {}
 
-	fs.Var(&DirFlag, "dir", "")
-	fs.Var(&DirFlag, "d", "")
+	fs.IntVarP(&PartFlag, "part", "p", 1, "")
+	fs.VarP(&SizeFlag, "size", "s", "")
+	fs.StringVarP(&BaseFlag, "base", "b", "", "")
+	fs.StringSliceVarP(&DirFlag, "dir", "d", []string{""}, "")
+	fs.DurationVarP(&TimeoutFlag, "timeout", "t", 0, "")
+	fs.VarP(&HeaderFlag, "header", "H", "")
 
-	SizeFlag = -1
-	fs.Var(&SizeFlag, "size", "")
-	fs.Var(&SizeFlag, "s", "")
+	fs.BoolVarP(&ForcePartFlag, "force", "f", false, "")
+	fs.BoolVarP(&QuietFlag, "quiet", "q", false, "")
+	fs.BoolVarP(&ConnReuseFlag, "no-connection-reuse", "x", false, "")
+	fs.BoolVarP(&ZeroAllFlag, "reset", "z", false, "")
+	fs.BoolVarP(&ZeroBrokenFlag, "reset-broken", "B", false, "")
+	fs.BoolVarP(&ZeroCompletedFlag, "reset-completed", "C", false, "")
+	fs.BoolVarP(&ZeroResumeFlag, "reset-resume", "R", false, "")
 
-	HeaderFlag = Header{make(http.Header)}
-	fs.Var(&HeaderFlag, "header", "")
-	fs.Var(&HeaderFlag, "H", "")
-
-	fs.IntVar(&PartFlag, "part", 1, "")
-	fs.IntVar(&PartFlag, "p", 1, "")
-
-	fs.StringVar(&BaseFlag, "base", "", "")
-	fs.StringVar(&BaseFlag, "b", "", "")
-
-	fs.DurationVar(&TimeoutFlag, "timeout", 0, "")
-	fs.DurationVar(&TimeoutFlag, "t", 0, "")
-
-	fs.BoolVar(&ConnReuseFlag, "x", false, "")
-
-	fs.BoolVar(&ZeroResumeFlag, "R", false, "")
-	fs.BoolVar(&ZeroCompletedFlag, "C", false, "")
-	fs.BoolVar(&ZeroBrokenFlag, "B", false, "")
-	fs.BoolVar(&ZeroAllFlag, "z", false, "")
-
-	fs.BoolVar(&ForcePartFlag, "f", false, "")
-	fs.BoolVar(&QuietFlag, "q", false, "")
-
-	fs.BoolVar(&VersionFlag, "V", false, "")
+	fs.BoolVarP(&VersionFlag, "version", "V", false, "")
 
 }
 
@@ -228,14 +212,6 @@ func HandleArgsErr(err error) error {
 
 	if err != nil {
 
-		if strings.Contains(err.Error(), "flag provided but not defined:") {
-			err = NewErr(
-				"%s:%s",
-				ErrArgs,
-				strings.SplitAfterN(err.Error(), ":", 2)[1],
-			)
-		}
-
 		switch {
 		case IsErr(err, ErrVer):
 			fmt.Fprintf(os.Stderr, "%s", VersionPage)
@@ -253,17 +229,12 @@ func HandleArgsErr(err error) error {
 
 }
 
-func (ps *Paths) String() string {
-	return strings.Join(*ps, ",")
-}
-
-func (ps *Paths) Set(value string) error {
-	*ps = append(*ps, value)
-	return nil
-}
-
 func (h *Header) String() string {
 	return fmt.Sprintf("%+v", h.Header)
+}
+
+func (h *Header) Type() string {
+	return "Header"
 }
 
 func (h *Header) Set(value string) error {
@@ -278,6 +249,10 @@ func (h *Header) Set(value string) error {
 
 func (bs *ByteSize) String() string {
 	return fmt.Sprintf("%d", *bs)
+}
+
+func (bs *ByteSize) Type() string {
+	return "ByteSize"
 }
 
 func (bs *ByteSize) Set(value string) error {

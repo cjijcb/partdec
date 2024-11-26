@@ -249,6 +249,7 @@ func NewDownload(opt *DLOptions) (*Download, error) {
 func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	SharedTransport.DisableKeepAlives = opt.IOMode.ConnReuse
+	SharedTransport.ResponseHeaderTimeout = opt.IOMode.Timeout
 
 	if opt.IOMode != nil {
 		md := opt.IOMode
@@ -257,7 +258,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		}
 	}
 
-	hdr, cl, err := GetHeaders(opt.URI, opt.IOMode.Timeout)
+	hdr, cl, err := GetHeaders(opt.URI)
 	if err != nil {
 		return nil, err
 	}

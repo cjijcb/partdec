@@ -1,0 +1,79 @@
+Usage: partdec [OPTIONS]... <URL|LOCAL PATH>
+Seamlessly split files from the web or local storage. 
+
+Options:
+  -p, --part <N>
+            Split the file into N parts. If N is zero or less, it defaults to
+            1. If -s/--size is used, this option is ignored.
+
+  -s, --size <SIZE>
+            Split the file into parts of SIZE. SIZE is in byte size and can
+            include the following binary prefixes:
+            SI: KB, MB, GB, TB (case-insensitive)
+            IEC: KiB, MiB, GiB, TiB, or K, M, G, T (case-insensitive)
+
+  -b, --base <PATH>
+            Set the base path for output files and also set their filename.
+            For multiple output files, an _N suffix is added, where N is an
+            incrementing number starting from 1.
+
+  -d, --dir <PATH>
+            Set the destination directory for output files. PATH can be 
+            multiple comma-separated directories. This option can also be used
+            multiple times to specify multiple directories. Each specified
+            directory is combined with the base path (dir + base path).
+
+  -t, --timeout <TIME>
+            Set the HTTP request timeout. TIME is a number followed by a
+            suffix: ms, s, m, or h to represent milliseconds, seconds, minutes,
+            or hours, respectively (e.g., -t 1h2m3s).
+            The default is 0, meaning no timeout.
+
+  -x, --no-connection-reuse
+            Disable the HTTP Keep-Alive or connection reuse. This ensures a
+            separate connection per output file in multipart HTTP(S)
+            downloads.
+
+  -H, --header <HEADER_NAME:VALUE>
+            Set or add an HTTP header. This option can be used multiple times
+            to specify multiple headers. The Range header is ignored in
+            multipart HTTP(S) downloads. HEADER_NAME is case-insensitive.
+
+  -f, --force
+            Override the soft limit (128) on the total number of output files.
+            This option also enables quiet mode.
+
+  -q, --quiet
+            Enable quiet mode.
+
+  -z, --reset
+            Reset files with an initial state of [completed], [resume], or
+            [broken] to [new]. Same as -CBR.
+
+  -C, --reset-completed
+            Reset files with an initial [completed] state to [new].
+
+  -B, --reset-broken
+            Reset files with an initial [broken] state to [new].
+
+  -R, --reset-resume
+            Reset files with an initial [resume] state to [new].
+
+  -V, --version
+            Display version information.
+
+Output File States:
+    File states are based on the initial size of files and may change during
+    or after the download. States can also be affected by I/O operation errors
+    and the file scope, which determines the maximum size a file can
+    reach.
+
+    [new]       File with zero initial size.  
+    [resume]    File with non-zero initial size and within scope.  
+    [completed] File that has reached its maximum size.  
+    [broken]    File exceeding maximum size or with I/O errors.  
+    [unknown]   File with undetermined scope.
+
+    A file with the [unknown] state is always truncated to zero size on every
+    run with the same arguments. This state occurs when an HTTP(S) server does
+    not support multipart downloading.

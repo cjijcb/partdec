@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"time"
 )
 
 type (
@@ -36,7 +35,7 @@ type (
 )
 
 const (
-	UserAgent = "partdec/0.1.1"
+	UserAgent = "partdec/0.2.0"
 )
 
 var (
@@ -104,8 +103,6 @@ func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
 	}
 	wbio := NewWebIO(NewClient(), req)
 
-	wbio.Client.Timeout = md.Timeout
-
 	return wbio, nil
 }
 
@@ -139,9 +136,9 @@ func BuildRangeHeader(br ByteRange) string {
 
 }
 
-func GetHeaders(rawURL string, to time.Duration) (http.Header, int64, error) {
+func GetHeaders(rawURL string) (http.Header, int64, error) {
 
-	ct := &http.Client{Transport: SharedTransport, Timeout: to}
+	ct := &http.Client{Transport: SharedTransport}
 
 	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
 	if err != nil {
