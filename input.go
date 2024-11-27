@@ -70,7 +70,7 @@ var (
 	ForcePartFlag     bool
 	QuietFlag         bool
 	VersionFlag       bool
-	ConnReuseFlag     bool
+	NoConnReuseFlag   bool
 
 	ByteUnit = map[string]int64{
 		"":  1,
@@ -133,9 +133,9 @@ func NewDLOptions() (*DLOptions, error) {
 		UI:        ui,
 		Force:     ForcePartFlag,
 		IOMode: &IOMode{
-			Timeout:    TimeoutFlag,
-			UserHeader: HeaderFlag.Header,
-			ConnReuse:  ConnReuseFlag,
+			Timeout:     TimeoutFlag,
+			UserHeader:  HeaderFlag.Header,
+			NoConnReuse: NoConnReuseFlag,
 		},
 	}, nil
 
@@ -156,7 +156,7 @@ func InitArgs(fs *flag.FlagSet) {
 
 	fs.BoolVarP(&ForcePartFlag, "force", "f", false, "")
 	fs.BoolVarP(&QuietFlag, "quiet", "q", false, "")
-	fs.BoolVarP(&ConnReuseFlag, "no-connection-reuse", "x", false, "")
+	fs.BoolVarP(&NoConnReuseFlag, "no-connection-reuse", "x", false, "")
 	fs.BoolVarP(&ZeroAllFlag, "reset", "z", false, "")
 	fs.BoolVarP(&ZeroBrokenFlag, "reset-broken", "B", false, "")
 	fs.BoolVarP(&ZeroCompletedFlag, "reset-completed", "C", false, "")

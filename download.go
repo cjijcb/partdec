@@ -41,10 +41,10 @@ type (
 		Dst *FileIO
 	}
 	IOMode struct {
-		Timeout    time.Duration
-		UserHeader http.Header
-		ConnReuse  bool
-		O_FLAGS    int
+		Timeout     time.Duration
+		UserHeader  http.Header
+		NoConnReuse bool
+		O_FLAGS     int
 	}
 
 	DLOptions struct {
@@ -248,7 +248,7 @@ func NewDownload(opt *DLOptions) (*Download, error) {
 
 func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
-	SharedTransport.DisableKeepAlives = opt.IOMode.ConnReuse
+	SharedTransport.DisableKeepAlives = opt.IOMode.NoConnReuse
 	SharedTransport.ResponseHeaderTimeout = opt.IOMode.Timeout
 
 	if opt.IOMode != nil {
