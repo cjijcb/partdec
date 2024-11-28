@@ -1,5 +1,6 @@
 # partdec
 [![Go Report Card](https://goreportcard.com/badge/github.com/cjijcb/partdec)](https://goreportcard.com/report/github.com/cjijcb/partdec)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/af4b1b130f194d6caa0edeb4cce4d342)](https://app.codacy.com/gh/cjijcb/partdec/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/cjijcb/partdec/blob/master/LICENSE)
 
 **partdec** is a command-line utility for multipart downloading and file splitting. It can
