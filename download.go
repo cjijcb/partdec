@@ -265,12 +265,8 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	opt.AlignPartCountSize(cl)
 
-	if cl != UnknownSize && (opt.PartCount > int(cl) || opt.PartSize > cl) {
-		return nil, ErrPartExceed
-	}
-
-	if opt.PartCount > PartSoftLimit && !opt.Force {
-		return nil, NewErr("%s of %d: %d ", ErrPartLimit, PartSoftLimit, opt.PartCount)
+	if err := opt.ValidatePartCountSize(cl); err != nil {
+		return nil, err
 	}
 
 	basePath := opt.BasePath
@@ -310,12 +306,8 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
 	opt.AlignPartCountSize(dataSize)
 
-	if opt.PartCount > int(dataSize) || opt.PartSize > dataSize {
-		return nil, ErrPartExceed
-	}
-
-	if opt.PartCount > PartSoftLimit && !opt.Force {
-		return nil, NewErr("%s of %s: %s ", ErrPartLimit, PartSoftLimit, opt.PartCount)
+	if err := opt.ValidatePartCountSize(dataSize); err != nil {
+		return nil, err
 	}
 
 	basePath := opt.BasePath
@@ -388,6 +380,20 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) {
 
 }
 
+func (opt *DLOptions) ValidatePartCountSize(dataSize int64) error {
+
+	if opt.PartCount > int(dataSize) || opt.PartSize > dataSize {
+		return ErrPartExceed
+	}
+
+	if opt.PartCount > PartSoftLimit && !opt.Force {
+		return NewErr("%s of %d: %d ", ErrPartLimit, PartSoftLimit, opt.PartCount)
+	}
+
+	return nil
+
+}
+
 func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 	var (
@@ -456,7 +462,6 @@ func (dcs DataCasters) Close() error {
 func CopyX(ctx context.Context, w io.WriteCloser, r io.ReadCloser) (err error) {
 
 	go func() {
-
 		<-ctx.Done()
 		r.Close()
 		w.Close()
