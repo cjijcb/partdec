@@ -36,10 +36,12 @@ type (
 
 	DLStatus uint8
 	DLType   uint8
-	EndPoint struct {
-		Src DataCaster
-		Dst *FileIO
+
+	endpoint struct {
+		src DataCaster
+		dst *FileIO
 	}
+
 	IOMode struct {
 		Timeout     time.Duration
 		UserHeader  http.Header
@@ -111,7 +113,7 @@ func (d *Download) Start() error {
 	errCh := make(chan error, partCount)
 
 	d.Flow.WG.Add(1)
-	go d.Fetch(ctx, errCh)
+	go d.FetchAll(ctx, errCh)
 
 	if fetchErr = CatchErr(errCh, partCount); fetchErr != nil {
 		d.Cancel()
@@ -124,7 +126,7 @@ func (d *Download) Start() error {
 	return fetchErr
 }
 
-func (d *Download) Fetch(ctx context.Context, errCh chan error) {
+func (d *Download) FetchAll(ctx context.Context, errCh chan error) {
 	defer func() {
 		d.Flow.WG.Done()
 		if r := recover(); r != nil {
@@ -149,11 +151,11 @@ func (d *Download) Fetch(ctx context.Context, errCh chan error) {
 
 		<-d.Flow.Acquire(d.Flow.Limiter)
 		d.Flow.WG.Add(1)
-		go d.fetch(ctx, &EndPoint{dc, fio}, errCh)
+		go d.fetch(ctx, &endpoint{dc, fio}, errCh)
 	}
 }
 
-func (d *Download) fetch(ctx context.Context, ep *EndPoint, errCh chan<- error) {
+func (d *Download) fetch(ctx context.Context, ep *endpoint, errCh chan<- error) {
 	defer func() {
 		d.Flow.WG.Done()
 		d.Flow.Release(d.Flow.Limiter)
@@ -162,8 +164,8 @@ func (d *Download) fetch(ctx context.Context, ep *EndPoint, errCh chan<- error) 
 		}
 	}()
 
-	dc := ep.Src
-	fio := ep.Dst
+	dc := ep.src
+	fio := ep.dst
 	defer fio.Close()
 
 	if err := fio.Open(); err != nil {

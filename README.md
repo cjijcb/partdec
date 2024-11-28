@@ -149,8 +149,7 @@ Options:
 Output File States:
     File states are based on the initial size of files and may change during
     or after the download. States can also be affected by I/O operation errors
-    and the file scope, which determines the maximum size a file can
-    reach.
+    and the file scope, which determines the maximum size a file can reach.
 
     [new]       File with zero initial size.
     [resume]    File with non-zero initial size and within scope.
