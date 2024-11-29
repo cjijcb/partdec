@@ -128,6 +128,7 @@ func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 	}
 
 	return fio, nil
+
 }
 
 func (fio *FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
@@ -200,6 +201,7 @@ func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 }
 
 func (fios FileIOs) SetInitState() error {
+
 	for _, fio := range fios {
 		size, err := fio.Size()
 		if err != nil {
@@ -225,6 +227,7 @@ func (fios FileIOs) SetInitState() error {
 		}
 	}
 	return nil
+
 }
 
 func (fios FileIOs) SetByteRange(dataSize int64, partSize int64) error {
@@ -252,6 +255,7 @@ func (fios FileIOs) SetByteRange(dataSize int64, partSize int64) error {
 	}
 
 	return nil
+
 }
 
 func (fios FileIOs) setByteRangeByPartCount(dataSize int64) error {
@@ -290,6 +294,7 @@ func (fios FileIOs) setByteRangeByPartCount(dataSize int64) error {
 	}
 
 	return nil
+
 }
 
 func (fios FileIOs) setByteRangeByPartSize(dataSize int64, partSize int64) error {
@@ -328,6 +333,7 @@ func (fios FileIOs) setByteRangeByPartSize(dataSize int64, partSize int64) error
 	}
 
 	return nil
+
 }
 
 func (fio *FileIO) Open() error {
@@ -339,6 +345,7 @@ func (fio *FileIO) Open() error {
 	}
 
 	return nil
+
 }
 
 func newFileNameFromPath(path string) string {
@@ -365,9 +372,11 @@ func FileNameIndexer(maxIndex int) func(string) string {
 		}
 		return name
 	}
+
 }
 
 func countDigits(n int) int {
+
 	count := 0
 	switch {
 	case n == 0:
@@ -381,6 +390,7 @@ func countDigits(n int) int {
 		count++
 	}
 	return count
+
 }
 
 func (s FileState) String() string {
@@ -423,10 +433,17 @@ func (fios FileIOs) TotalSize() int64 {
 }
 
 func (fio *FileIO) IsOpen() bool {
+
+	mtx.Lock()
+	defer mtx.Unlock()
 	return fio.isOpen
+
 }
 
 func (fio *FileIO) Close() error {
+
+	mtx.Lock()
+	defer mtx.Unlock()
 
 	fio.isOpen = false
 	if fio.File != nil {
@@ -435,6 +452,7 @@ func (fio *FileIO) Close() error {
 		}
 	}
 	return nil
+
 }
 
 func (fio *FileIO) PullState() FileState {

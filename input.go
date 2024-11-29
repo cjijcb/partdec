@@ -245,6 +245,7 @@ func (h *Header) Set(value string) error {
 	}
 
 	return nil
+
 }
 
 func (bs *ByteSize) String() string {
@@ -280,27 +281,32 @@ func (bs *ByteSize) Set(value string) error {
 	}
 
 	return nil
+
 }
 
 func IsFile(path string) bool {
+
 	if info, err := os.Stat(path); err == nil {
 		return info.Mode().IsRegular()
 	} else {
 		return false
 	}
+
 }
 
 func IsEndSeparator(path string) bool {
 
 	path = strings.TrimSpace(path)
-
 	return path[len(path)-1:] == PathSeparator
+
 }
 
 func IsURL(rawURL string) bool {
+
 	if u, err := url.Parse(rawURL); err == nil {
 		return (u.Scheme == "http" || u.Scheme == "https")
 	} else {
 		return false
 	}
+
 }

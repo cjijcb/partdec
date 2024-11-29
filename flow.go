@@ -23,44 +23,35 @@ import (
 	"syscall"
 )
 
-type (
-	FlowControl struct {
-		WG      *sync.WaitGroup
-		Limiter chan struct{}
-		Acquire func(chan<- struct{}) <-chan struct{}
-		Release func(<-chan struct{})
-	}
-)
-
-var mtx = &sync.RWMutex{}
-
-func NewFlowControl(limit int) *FlowControl {
-
-	limiter := make(chan struct{}, limit)
-	acq := func(l chan<- struct{}) <-chan struct{} {
-		acquired := make(chan struct{})
-		l <- struct{}{}
-		close(acquired)
-		return acquired
-	}
-	rls := func(l <-chan struct{}) { <-l }
-
-	return &FlowControl{
-		WG:      &sync.WaitGroup{},
-		Limiter: limiter,
-		Acquire: acq,
-		Release: rls,
-	}
+type FlowControl struct {
+	WG      *sync.WaitGroup
+	Limiter chan struct{}
 }
+
+var mtx = &sync.Mutex{}
 
 func Interrupt() <-chan os.Signal {
 
-	sigCh := make(chan os.Signal)
+	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		sig := <-sigCh
-		sigCh <- sig
-	}()
 
 	return sigCh
+
+}
+
+func NewFlowControl(limit int) *FlowControl {
+
+	return &FlowControl{
+		WG:      &sync.WaitGroup{},
+		Limiter: make(chan struct{}, limit),
+	}
+
+}
+
+func (fc *FlowControl) Acquire() {
+	fc.Limiter <- struct{}{}
+}
+
+func (fc *FlowControl) Release() {
+	<-fc.Limiter
 }

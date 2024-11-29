@@ -57,6 +57,7 @@ var (
 )
 
 func ShowProgress(d *Download) {
+
 	defer d.Flow.WG.Done()
 	defer d.Cancel()
 
@@ -109,6 +110,7 @@ func ShowProgress(d *Download) {
 }
 
 func (tl *Textile) ShowReport(fr *FileReport) string {
+
 	defer tl.Reset()
 
 	termWidth := TermWidth()
@@ -231,6 +233,7 @@ func (fr *FileReport) Elapsed() string {
 	}
 
 	return report
+
 }
 
 func ToEIC(b int64) string {
@@ -253,6 +256,8 @@ func ToEIC(b int64) string {
 }
 
 func TermWidth() int {
+
 	width, _, _ := term.GetSize(int(os.Stdin.Fd()))
 	return width
+
 }

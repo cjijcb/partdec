@@ -35,7 +35,7 @@ type (
 )
 
 const (
-	UserAgent = "partdec/0.2.2"
+	UserAgent = "partdec/0.2.3"
 )
 
 var (
@@ -51,6 +51,7 @@ var (
 )
 
 func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
+
 	wbio := &WebIO{
 		Client:  ct,
 		Request: req,
@@ -58,9 +59,11 @@ func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
 	}
 
 	return wbio
+
 }
 
 func NewReq(method string, rawURL string) (*http.Request, error) {
+
 	req, err := http.NewRequest(method, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -69,11 +72,14 @@ func NewReq(method string, rawURL string) (*http.Request, error) {
 	req.Header = SharedHeader.Clone()
 
 	return req, nil
+
 }
 
 func NewClient() *http.Client {
+
 	ct := &http.Client{Transport: SharedTransport}
 	return ct
+
 }
 
 func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
@@ -94,9 +100,11 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 	wbio.Body = resp.Body
 
 	return wbio.Body, nil
+
 }
 
 func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
+
 	req, err := NewReq(http.MethodGet, rawURL)
 	if err != nil {
 		return nil, err
@@ -104,13 +112,22 @@ func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
 	wbio := NewWebIO(NewClient(), req)
 
 	return wbio, nil
+
 }
 
 func (wbio *WebIO) IsOpen() bool {
+
+	mtx.Lock()
+	defer mtx.Unlock()
 	return wbio.isOpen
+
 }
 
 func (wbio *WebIO) Close() error {
+
+	mtx.Lock()
+	defer mtx.Unlock()
+
 	wbio.isOpen = false
 	if wbio.Body != nil {
 		if err := wbio.Body.Close(); err != nil {
@@ -118,9 +135,11 @@ func (wbio *WebIO) Close() error {
 		}
 	}
 	return nil
+
 }
 
 func BuildRangeHeader(br ByteRange) string {
+
 	if br.Start == UnknownSize || br.End == UnknownSize {
 		return "none"
 	}
@@ -161,9 +180,11 @@ func GetHeaders(rawURL string) (http.Header, int64, error) {
 	}
 
 	return nil, UnknownSize, err
+
 }
 
 func newFileNameFromHeader(hdr http.Header) string {
+
 	if hdr == nil {
 		return ""
 	}
@@ -184,12 +205,15 @@ func newFileNameFromHeader(hdr http.Header) string {
 	}
 
 	return fileName
+
 }
 
 func newFileNameFromURL(rawURL string) string {
+
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return ""
 	}
 	return path.Base(parsedURL.Path)
+
 }

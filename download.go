@@ -89,6 +89,7 @@ const (
 )
 
 func (d *Download) Start() error {
+
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "%s\n",
@@ -124,9 +125,11 @@ func (d *Download) Start() error {
 	d.Flow.WG.Wait()
 	d.PushStatus(Stopped)
 	return fetchErr
+
 }
 
 func (d *Download) FetchAll(ctx context.Context, errCh chan error) {
+
 	defer func() {
 		d.Flow.WG.Done()
 		if r := recover(); r != nil {
@@ -138,27 +141,31 @@ func (d *Download) FetchAll(ctx context.Context, errCh chan error) {
 
 	for _, fio := range d.Files {
 		dc, err := gendc()
+
 		if err != nil {
 			errCh <- JoinErr(err, ErrAbort)
 			return
 		}
 
 		if fio.State == Completed || fio.State == Broken {
+			dc.Close()
 			fio.Close()
 			errCh <- nil
 			continue
 		}
 
-		<-d.Flow.Acquire(d.Flow.Limiter)
+		d.Flow.Acquire()
 		d.Flow.WG.Add(1)
 		go d.fetch(ctx, &endpoint{dc, fio}, errCh)
 	}
+
 }
 
 func (d *Download) fetch(ctx context.Context, ep *endpoint, errCh chan<- error) {
+
 	defer func() {
 		d.Flow.WG.Done()
-		d.Flow.Release(d.Flow.Limiter)
+		d.Flow.Release()
 		if r := recover(); r != nil {
 			errCh <- ToErr(r)
 		}
@@ -373,7 +380,7 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) {
 		opt.PartSize = UnknownSize
 	}
 
-	if opt.PartSize > 1 {
+	if opt.PartSize > 0 {
 		opt.PartCount = int(dataSize / opt.PartSize)
 		if dataSize%opt.PartSize != 0 {
 			opt.PartCount++
@@ -440,6 +447,7 @@ func (d *Download) PullStatus() DLStatus {
 	mtx.Lock()
 	defer mtx.Unlock()
 	return d.Status
+
 }
 
 func (d *Download) PushStatus(ds DLStatus) {
@@ -447,6 +455,7 @@ func (d *Download) PushStatus(ds DLStatus) {
 	mtx.Lock()
 	defer mtx.Unlock()
 	d.Status = ds
+
 }
 
 func (dcs DataCasters) Close() error {
