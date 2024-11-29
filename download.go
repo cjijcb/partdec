@@ -365,7 +365,7 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) {
 		return
 	}
 
-	if opt.PartCount < 0 {
+	if opt.PartCount < 1 {
 		opt.PartCount = 1
 	}
 
