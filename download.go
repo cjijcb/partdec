@@ -272,9 +272,7 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	opt.AlignPartCountSize(cl)
-
-	if err := opt.ValidatePartCountSize(cl); err != nil {
+	if err := opt.AlignPartCountSize(cl); err != nil {
 		return nil, err
 	}
 
@@ -313,9 +311,7 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 	}
 	dataSize := info.Size()
 
-	opt.AlignPartCountSize(dataSize)
-
-	if err := opt.ValidatePartCountSize(dataSize); err != nil {
+	if err := opt.AlignPartCountSize(dataSize); err != nil {
 		return nil, err
 	}
 
@@ -364,12 +360,12 @@ func NewFileName(uri string, hdr http.Header) string {
 
 }
 
-func (opt *DLOptions) AlignPartCountSize(dataSize int64) {
+func (opt *DLOptions) AlignPartCountSize(dataSize int64) error {
 
 	if dataSize == UnknownSize {
 		opt.PartCount = 1
 		opt.PartSize = UnknownSize
-		return
+		return nil
 	}
 
 	if opt.PartCount < 1 {
@@ -381,15 +377,8 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) {
 	}
 
 	if opt.PartSize > 0 {
-		opt.PartCount = int(dataSize / opt.PartSize)
-		if dataSize%opt.PartSize != 0 {
-			opt.PartCount++
-		}
+		opt.PartCount = int((dataSize + opt.PartSize - 1) / opt.PartSize) // Ceiling division
 	}
-
-}
-
-func (opt *DLOptions) ValidatePartCountSize(dataSize int64) error {
 
 	if opt.PartCount > int(dataSize) || opt.PartSize > dataSize {
 		return ErrPartExceed
