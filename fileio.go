@@ -136,13 +136,15 @@ func (fio *FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 	rangeStart := br.Start + br.Offset
 	rangeEnd := br.End
 
-	if rangeStart > rangeEnd {
+	if rangeEnd < 0 {
+		rangeEnd = 0
+	}
+
+	if rangeStart > rangeEnd || rangeStart < 0 {
 		rangeStart = rangeEnd
 	}
 
-	rangeEnd = rangeEnd - rangeStart + 1
-
-	r := io.NewSectionReader(fio, rangeStart, rangeEnd)
+	r := io.NewSectionReader(fio, rangeStart, rangeEnd-rangeStart+1)
 
 	return io.NopCloser(r), nil
 
@@ -236,7 +238,7 @@ func (fios FileIOs) SetByteRange(dataSize int64, partSize int64) error {
 		fios[0].Scope.isFullRange = true
 	}
 
-	if dataSize == UnknownSize {
+	if dataSize < 0 {
 		for _, fio := range fios {
 			fio.Scope.Start = 1 // end - start + 1 = -1
 			fio.Scope.End = UnknownSize
@@ -336,9 +338,8 @@ func (fios FileIOs) setByteRangeByPartSize(dataSize int64, partSize int64) error
 
 }
 
-func (fio *FileIO) Open() error {
+func (fio *FileIO) Open() (err error) {
 
-	var err error
 	fio.File, err = os.OpenFile(fio.Path.Relative, fio.Oflag, fio.Perm)
 	if err != nil {
 		return err
@@ -471,9 +472,8 @@ func (fio *FileIO) PushState(fs FileState) {
 
 }
 
-func (fios FileIOs) Close() error {
+func (fios FileIOs) Close() (err error) {
 
-	var err error
 	for _, fio := range fios {
 		if fio != nil && fio.isOpen {
 			err = JoinErr(err, fio.Close())

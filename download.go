@@ -362,30 +362,29 @@ func NewFileName(uri string, hdr http.Header) string {
 
 func (opt *DLOptions) AlignPartCountSize(dataSize int64) error {
 
-	if dataSize == UnknownSize {
+	if dataSize < 1 {
 		opt.PartCount = 1
 		opt.PartSize = UnknownSize
 		return nil
+	}
+
+	switch {
+	case opt.PartSize < 1:
+		opt.PartSize = UnknownSize
+	default:
+		opt.PartCount = 1 + int((dataSize-1)/opt.PartSize) // Ceiling division
 	}
 
 	if opt.PartCount < 1 {
 		opt.PartCount = 1
 	}
 
-	if opt.PartSize < 1 {
-		opt.PartSize = UnknownSize
-	}
-
-	if opt.PartSize > 0 {
-		opt.PartCount = int((dataSize + opt.PartSize - 1) / opt.PartSize) // Ceiling division
-	}
-
 	if opt.PartCount > int(dataSize) || opt.PartSize > dataSize {
-		return ErrPartExceed
+		return NewErr("%s: %d", ErrPartExceed, dataSize)
 	}
 
 	if opt.PartCount > PartSoftLimit && !opt.Force {
-		return NewErr("%s of %d: %d ", ErrPartLimit, PartSoftLimit, opt.PartCount)
+		return NewErr("%s of %d: %d", ErrPartLimit, PartSoftLimit, opt.PartCount)
 	}
 
 	return nil
@@ -447,9 +446,8 @@ func (d *Download) PushStatus(ds DLStatus) {
 
 }
 
-func (dcs DataCasters) Close() error {
+func (dcs DataCasters) Close() (err error) {
 
-	var err error
 	for _, dc := range dcs {
 		if dc != nil && dc.IsOpen() {
 			err = JoinErr(err, dc.Close())

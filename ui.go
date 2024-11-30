@@ -190,7 +190,7 @@ func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSe
 	update := func() {
 		currentTotal := fr.FileIOs.TotalSize()
 
-		if dataSize != UnknownSize {
+		if dataSize > 0 {
 			*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
 		}
 
