@@ -88,7 +88,7 @@ const (
 	MaxFetch      = 32
 )
 
-func (d *Download) Start() error {
+func (d *Download) Start() (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -98,7 +98,6 @@ func (d *Download) Start() error {
 		}
 	}()
 
-	var fetchErr error
 	var ctx context.Context
 
 	ctx, d.Cancel = context.WithCancel(context.Background())
@@ -116,7 +115,7 @@ func (d *Download) Start() error {
 	d.Flow.WG.Add(1)
 	go d.FetchAll(ctx, errCh)
 
-	if fetchErr = CatchErr(errCh, partCount); fetchErr != nil {
+	if err = CatchErr(errCh, partCount); err != nil {
 		d.Cancel()
 	}
 
@@ -124,7 +123,7 @@ func (d *Download) Start() error {
 
 	d.Flow.WG.Wait()
 	d.PushStatus(Stopped)
-	return fetchErr
+	return err
 
 }
 
