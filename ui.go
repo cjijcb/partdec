@@ -37,7 +37,7 @@ type (
 	FileReport struct {
 		FileIOs
 		ReportFunc func() (PercentPerSec, BytesPerSec)
-		UpdateCh   chan struct{}
+		finalCh    chan struct{}
 		tkr        *time.Ticker
 		startTime  time.Time
 	}
@@ -104,7 +104,7 @@ func ShowProgress(d *Download) {
 		fmt.Print(resetDisplay)
 	}
 
-	close(fr.UpdateCh)
+	close(fr.finalCh)
 	fmt.Print(tl.ShowReport(fr) + showCursor)
 
 }
@@ -166,7 +166,7 @@ func NewFileReport(fios FileIOs, dataSize int64) *FileReport {
 
 	fr := &FileReport{
 		FileIOs:   fios,
-		UpdateCh:  make(chan struct{}, 1),
+		finalCh:   make(chan struct{}, 1),
 		tkr:       persec,
 		startTime: time.Now(),
 	}
@@ -187,24 +187,28 @@ func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSe
 
 	*percentSec = 0
 
-	update := func() {
+	update := func(final bool) {
+
 		currentTotal := fr.FileIOs.TotalSize()
 
 		if dataSize > 0 {
 			*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
 		}
+		if !final || *bytesSec == 0 {
+			*bytesSec = currentTotal - *cachedTotal
+			*cachedTotal = currentTotal
+		}
 
-		*bytesSec = currentTotal - *cachedTotal
-		*cachedTotal = currentTotal
 	}
+
 	return func() (PercentPerSec, BytesPerSec) {
 
 		select {
 		case <-fr.tkr.C:
-			update()
+			update(false)
 			return *percentSec, *bytesSec
-		case <-fr.UpdateCh:
-			update()
+		case <-fr.finalCh:
+			update(true)
 			return *percentSec, *bytesSec
 		default:
 			return *percentSec, *bytesSec

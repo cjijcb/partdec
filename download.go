@@ -347,11 +347,11 @@ func NewFileName(uri string, hdr http.Header) string {
 		return fileName
 	}
 
-	if fileName := newFileNameFromPath(uri); fileName != "" {
+	if fileName := newFileNameFromURL(uri); fileName != "" {
 		return fileName
 	}
 
-	if fileName := newFileNameFromURL(uri); fileName != "" {
+	if fileName := newFileNameFromPath(uri); fileName != "" {
 		return fileName
 	}
 

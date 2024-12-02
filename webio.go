@@ -210,10 +210,15 @@ func newFileNameFromHeader(hdr http.Header) string {
 
 func newFileNameFromURL(rawURL string) string {
 
-	parsedURL, err := url.Parse(rawURL)
+	url, err := url.Parse(rawURL)
 	if err != nil {
 		return ""
 	}
-	return path.Base(parsedURL.Path)
+
+	if url.Path != "" {
+		return path.Base(url.Path)
+	}
+
+	return "index.html"
 
 }
