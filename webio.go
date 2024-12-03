@@ -27,10 +27,10 @@ import (
 
 type (
 	WebIO struct {
-		Client  *http.Client
-		Request *http.Request
-		Body    io.ReadCloser
-		isOpen  bool
+		*http.Client
+		*http.Request
+		Body   io.ReadCloser
+		isOpen bool
 	}
 )
 
@@ -50,7 +50,14 @@ var (
 	}
 )
 
-func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
+func NewWebIO(ct *http.Client, rawURL string) (*WebIO, error) {
+
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header = SharedHeader.Clone()
 
 	wbio := &WebIO{
 		Client:  ct,
@@ -58,27 +65,7 @@ func NewWebIO(ct *http.Client, req *http.Request) *WebIO {
 		isOpen:  true,
 	}
 
-	return wbio
-
-}
-
-func NewReq(method string, rawURL string) (*http.Request, error) {
-
-	req, err := http.NewRequest(method, rawURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header = SharedHeader.Clone()
-
-	return req, nil
-
-}
-
-func NewClient() *http.Client {
-
-	ct := &http.Client{Transport: SharedTransport}
-	return ct
+	return wbio, nil
 
 }
 
@@ -105,11 +92,14 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
 
-	req, err := NewReq(http.MethodGet, rawURL)
+	wbio, err := NewWebIO(
+		&http.Client{Transport: SharedTransport},
+		rawURL,
+	)
+
 	if err != nil {
 		return nil, err
 	}
-	wbio := NewWebIO(NewClient(), req)
 
 	return wbio, nil
 
