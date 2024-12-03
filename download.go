@@ -72,7 +72,6 @@ type (
 		ReDL     map[FileState]bool
 		UI       func(*Download)
 		Cancel   context.CancelFunc
-		*IOMode
 	}
 )
 
@@ -81,11 +80,12 @@ const (
 	Running
 	Stopping
 	Stopped
-	Local DLType = iota
-	Online
 
-	PartSoftLimit = 128
-	MaxFetch      = 32
+	File DLType = iota
+	HTTP
+
+	PartSoftLimit      = 128
+	MaxConcurrentFetch = 32
 )
 
 func (d *Download) Start() (err error) {
@@ -216,9 +216,9 @@ func NewDownload(opt *DLOptions) (*Download, error) {
 
 	switch {
 	case IsFile(opt.URI):
-		d, err = NewLocalDownload(opt)
+		d, err = NewFileDownload(opt)
 	case IsURL(opt.URI):
-		d, err = NewOnlineDownload(opt)
+		d, err = NewHTTPDownload(opt)
 	default:
 		return nil, NewErr("%s: %s", ErrFileURL, opt.URI)
 	}
@@ -231,7 +231,7 @@ func NewDownload(opt *DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	if err = d.Files.SetInitState(); err != nil {
+	if err = d.Files.SetInitialState(); err != nil {
 		return nil, err
 	}
 
@@ -249,12 +249,12 @@ func NewDownload(opt *DLOptions) (*Download, error) {
 		break
 	}
 
-	d.Flow = NewFlowControl(MaxFetch)
+	d.Flow = NewFlowControl(MaxConcurrentFetch)
 	return d, nil
 
 }
 
-func NewOnlineDownload(opt *DLOptions) (*Download, error) {
+func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 
 	SharedTransport.DisableKeepAlives = opt.IOMode.NoConnReuse
 	SharedTransport.ResponseHeaderTimeout = opt.IOMode.Timeout
@@ -290,19 +290,18 @@ func NewOnlineDownload(opt *DLOptions) (*Download, error) {
 
 	return &Download{
 		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxFetch), //ring buffer
+		Sources:  make([]DataCaster, 2*MaxConcurrentFetch), //ring buffer
 		URI:      opt.URI,
 		DataSize: cl,
-		Type:     Online,
+		Type:     HTTP,
 		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
-		IOMode:   opt.IOMode,
 	}, nil
 
 }
 
-func NewLocalDownload(opt *DLOptions) (*Download, error) {
+func NewFileDownload(opt *DLOptions) (*Download, error) {
 
 	info, err := os.Stat(opt.URI)
 	if err != nil {
@@ -329,14 +328,13 @@ func NewLocalDownload(opt *DLOptions) (*Download, error) {
 
 	return &Download{
 		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxFetch), //ring buffer
+		Sources:  make([]DataCaster, 2*MaxConcurrentFetch), //ring buffer
 		URI:      opt.URI,
 		DataSize: dataSize,
-		Type:     Local,
+		Type:     File,
 		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
-		IOMode:   opt.IOMode,
 	}, nil
 
 }
@@ -393,24 +391,24 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) error {
 func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 	var (
-		gendc               func(string, *IOMode) (DataCaster, error)
+		gendc               func(string) (DataCaster, error)
 		dcs                 = d.Sources
 		maxRetry, lastIndex = len(dcs) + 1, len(dcs) - 1
 		i                   = -1
 	)
 	switch d.Type {
-	case Local:
+	case File:
 		gendc = NewFileDataCaster
-	case Online:
-		gendc = NewWebDataCaster
+	case HTTP:
+		gendc = NewHTTPDataCaster
 	default:
-		gendc = func(string, *IOMode) (DataCaster, error) {
+		gendc = func(string) (DataCaster, error) {
 			return nil, ErrDLType
 		}
 	}
 
 	return func() (DataCaster, error) {
-		dc, err := gendc(d.URI, d.IOMode)
+		dc, err := gendc(d.URI)
 		if err != nil {
 			return nil, err
 		}

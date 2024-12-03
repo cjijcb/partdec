@@ -26,7 +26,7 @@ import (
 )
 
 type (
-	WebIO struct {
+	HTTPIO struct {
 		*http.Client
 		*http.Request
 		Body   io.ReadCloser
@@ -40,7 +40,7 @@ const (
 
 var (
 	SharedTransport = &http.Transport{
-		MaxIdleConnsPerHost: MaxFetch,
+		MaxIdleConnsPerHost: MaxConcurrentFetch,
 		DisableKeepAlives:   false,
 	}
 
@@ -50,7 +50,7 @@ var (
 	}
 )
 
-func NewWebIO(ct *http.Client, rawURL string) (*WebIO, error) {
+func NewHTTPIO(ct *http.Client, rawURL string) (*HTTPIO, error) {
 
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -59,23 +59,21 @@ func NewWebIO(ct *http.Client, rawURL string) (*WebIO, error) {
 
 	req.Header = SharedHeader.Clone()
 
-	wbio := &WebIO{
+	return &HTTPIO{
 		Client:  ct,
 		Request: req,
 		isOpen:  true,
-	}
-
-	return wbio, nil
+	}, nil
 
 }
 
-func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
+func (hio *HTTPIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 	if !br.isFullRange { //overwrite Range header when there's partitioning
-		wbio.Request.Header.Set("Range", BuildRangeHeader(br))
+		hio.Request.Header.Set("Range", BuildRangeHeader(br))
 	}
 
-	resp, err := wbio.Client.Do(wbio.Request)
+	resp, err := hio.Client.Do(hio.Request)
 	if err != nil {
 		return nil, err
 	}
@@ -84,15 +82,15 @@ func (wbio *WebIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 		return nil, NewErr(resp.Status)
 	}
 
-	wbio.Body = resp.Body
+	hio.Body = resp.Body
 
-	return wbio.Body, nil
+	return hio.Body, nil
 
 }
 
-func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
+func NewHTTPDataCaster(rawURL string) (DataCaster, error) {
 
-	wbio, err := NewWebIO(
+	hio, err := NewHTTPIO(
 		&http.Client{Transport: SharedTransport},
 		rawURL,
 	)
@@ -101,26 +99,26 @@ func NewWebDataCaster(rawURL string, md *IOMode) (DataCaster, error) {
 		return nil, err
 	}
 
-	return wbio, nil
+	return hio, nil
 
 }
 
-func (wbio *WebIO) IsOpen() bool {
+func (hio *HTTPIO) IsOpen() bool {
 
 	mtx.Lock()
 	defer mtx.Unlock()
-	return wbio.isOpen
+	return hio.isOpen
 
 }
 
-func (wbio *WebIO) Close() error {
+func (hio *HTTPIO) Close() error {
 
 	mtx.Lock()
 	defer mtx.Unlock()
 
-	wbio.isOpen = false
-	if wbio.Body != nil {
-		if err := wbio.Body.Close(); err != nil {
+	hio.isOpen = false
+	if hio.Body != nil {
+		if err := hio.Body.Close(); err != nil {
 			return err
 		}
 	}

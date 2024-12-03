@@ -25,7 +25,8 @@ import (
 
 type (
 	FileState uint8
-	FilePath  struct {
+
+	FilePath struct {
 		Base, DstDir, Relative string
 	}
 
@@ -115,7 +116,7 @@ func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 		return nil, err
 	}
 
-	fio := &FileIO{
+	return &FileIO{
 		File: f,
 		Path: FilePath{
 			Base:     basePath,
@@ -125,9 +126,7 @@ func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 		Oflag:  oflag,
 		Perm:   FilePerm,
 		isOpen: true,
-	}
-
-	return fio, nil
+	}, nil
 
 }
 
@@ -150,22 +149,20 @@ func (fio *FileIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
 }
 
-func NewFileDataCaster(path string, md *IOMode) (DataCaster, error) {
+func NewFileDataCaster(path string) (DataCaster, error) {
 
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 
-	fio := &FileIO{
+	return &FileIO{
 		File: f,
 		Path: FilePath{
 			Base: path,
 		},
 		isOpen: true,
-	}
-	return fio, nil
-
+	}, nil
 }
 
 func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
@@ -202,7 +199,7 @@ func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 
 }
 
-func (fios FileIOs) SetInitState() error {
+func (fios FileIOs) SetInitialState() error {
 
 	for _, fio := range fios {
 		size, err := fio.Size()
@@ -362,7 +359,21 @@ func FileNameIndexer(maxIndex int) func(string) string {
 			return name
 		}
 	}
+	countDigits := func(n int) int {
+		count := 0
+		switch {
+		case n == 0:
+			return 1
+		case n < 0:
+			n = -n
+		}
 
+		for n > 0 {
+			n /= 10
+			count++
+		}
+		return count
+	}
 	pad := countDigits(maxIndex)
 	currentIndex := 0
 
@@ -373,24 +384,6 @@ func FileNameIndexer(maxIndex int) func(string) string {
 		}
 		return name
 	}
-
-}
-
-func countDigits(n int) int {
-
-	count := 0
-	switch {
-	case n == 0:
-		return 1
-	case n < 0:
-		n = -n
-	}
-
-	for n > 0 {
-		n /= 10
-		count++
-	}
-	return count
 
 }
 
