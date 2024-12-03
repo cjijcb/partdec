@@ -35,7 +35,7 @@ type (
 )
 
 const (
-	UserAgent = "partdec/0.2.5"
+	UserAgent = "partdec/0.2.6"
 )
 
 var (
@@ -166,9 +166,16 @@ func GetHeaders(rawURL string) (http.Header, int64, error) {
 
 	req.Header = SharedHeader
 
+	contLen := func(resp *http.Response) int64 {
+		if resp.Header.Get("Accept-Ranges") != "bytes" {
+			return UnknownSize
+		}
+		return resp.ContentLength
+	}
+
 	resp, err := ct.Do(req)
 	if err == nil && resp.ContentLength != UnknownSize {
-		return resp.Header, resp.ContentLength, nil
+		return resp.Header, contLen(resp), nil
 	}
 
 	req.Method = http.MethodGet
@@ -176,7 +183,7 @@ func GetHeaders(rawURL string) (http.Header, int64, error) {
 
 	if err == nil {
 		defer resp.Body.Close()
-		return resp.Header, resp.ContentLength, nil
+		return resp.Header, contLen(resp), nil
 	}
 
 	return nil, UnknownSize, err
