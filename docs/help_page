@@ -1,5 +1,6 @@
-Usage: partdec [OPTIONS]... <URL|LOCAL PATH>
-Seamlessly split files from the web or local storage. 
+Download a file in parts simultaneously from a remote or local source.
+
+Usage: partdec [OPTIONS]... <URI|LOCAL PATH>
 
 Options:
   -p, --part <N>
@@ -26,13 +27,12 @@ Options:
   -t, --timeout <TIME>
             Set the HTTP request timeout. TIME is a number followed by a
             suffix: ms, s, m, or h to represent milliseconds, seconds, minutes,
-            or hours, respectively (e.g., -t 1h2m3s).
-            The default is 0, meaning no timeout.
+            or hours, respectively (e.g., -t 1h2m3s). The default is 0, meaning
+            no timeout.
 
   -x, --no-connection-reuse
             Disable the HTTP Keep-Alive or connection reuse. This ensures a
-            separate connection per output file in multipart HTTP(S)
-            downloads.
+            separate connection per file part in multipart HTTP(S) downloads.
 
   -H, --header <HEADER_NAME:VALUE>
             Set or add an HTTP header. This option can be used multiple times

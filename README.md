@@ -3,12 +3,9 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/af4b1b130f194d6caa0edeb4cce4d342)](https://app.codacy.com/gh/cjijcb/partdec/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/cjijcb/partdec/blob/master/LICENSE)
 
-**partdec** is a command-line utility for multipart downloading and file splitting. It can
-seamlessly split a file from the web or local storage and distribute parts of the file to
-multiple destination paths.
+**partdec** is a command-line utility for multipart downloading and file splitting. It can download a file in parts simultaneously from a remote or local sources and distribute parts of the file to multiple destination paths.
 
-In web downloading, partdec allows a dedicated connection per output file and handles interruptions safely,
-allowing for resumable downloads. It supports HTTP and HTTPS.
+partdec allows a separate connection per file part and the ability to resume interrupted file transfers. It supports HTTP and HTTPS protocols.
 
 
 ## Demo
@@ -84,7 +81,6 @@ Basic Options:
 
 <pre>
 Usage: partdec [OPTIONS]... &lt;URL|LOCAL PATH&gt;
-Seamlessly split files from the web or local storage.
 
 Options:
   -p, --part &lt;N&gt;
@@ -111,13 +107,12 @@ Options:
   -t, --timeout &lt;TIME&gt;
             Set the HTTP request timeout. TIME is a number followed by a
             suffix: ms, s, m, or h to represent milliseconds, seconds, minutes,
-            or hours, respectively (e.g., -t 1h2m3s).
-            The default is 0, meaning no timeout.
+            or hours, respectively (e.g., -t 1h2m3s). The default is 0, meaning
+            no timeout.
   
   -x, --no-connection-reuse
             Disable the HTTP Keep-Alive or connection reuse. This ensures a
-            separate connection per output file in multipart HTTP(S)
-            downloads.
+            separate connection per file part in multipart HTTP(S) downloads.
 
   -H, --header &lt;HEADER_NAME:VALUE&gt;
             Set or add an HTTP header. This option can be used multiple times
