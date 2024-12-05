@@ -209,10 +209,7 @@ func (d *Download) fetch(ctx context.Context, ep *endpoint, errCh chan<- error) 
 
 }
 
-func NewDownload(opt *DLOptions) (*Download, error) {
-
-	var d *Download
-	var err error
+func NewDownload(opt *DLOptions) (d *Download, err error) {
 
 	switch {
 	case IsFile(opt.URI):
@@ -275,15 +272,9 @@ func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	basePath := opt.BasePath
-	switch {
-	case basePath == "":
-		basePath = NewFileName(opt.URI, hdr)
-	case IsEndSeparator(basePath):
-		basePath += NewFileName(opt.URI, hdr)
-	}
+	opt.ParseBasePath(hdr)
 
-	fios, err := BuildFileIOs(opt.PartCount, basePath, opt.DstDirs)
+	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
 	if err != nil {
 		return nil, err
 	}
@@ -313,15 +304,9 @@ func NewFileDownload(opt *DLOptions) (*Download, error) {
 		return nil, err
 	}
 
-	basePath := opt.BasePath
-	switch {
-	case basePath == "":
-		basePath = NewFileName(opt.URI, nil)
-	case IsEndSeparator(basePath):
-		basePath += NewFileName(opt.URI, nil)
-	}
+	opt.ParseBasePath(nil)
 
-	fios, err := BuildFileIOs(opt.PartCount, basePath, opt.DstDirs)
+	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
 	if err != nil {
 		return nil, err
 	}
@@ -385,6 +370,17 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) error {
 	}
 
 	return nil
+
+}
+
+func (opt *DLOptions) ParseBasePath(hdr http.Header) {
+
+	switch {
+	case opt.BasePath == "":
+		opt.BasePath = NewFileName(opt.URI, hdr)
+	case IsEndSeparator(opt.BasePath):
+		opt.BasePath += NewFileName(opt.URI, hdr)
+	}
 
 }
 
