@@ -5,7 +5,8 @@
 
 **partdec** is a command-line utility for multipart downloading and file splitting. It can download a file in parts simultaneously from a remote or local source and distribute parts of the file to multiple destination paths.
 
-partdec allows a separate connection per file part and the ability to resume interrupted file transfers. It supports HTTP and HTTPS protocols.
+partdec allows a separate connection per file part and the ability to resume interrupted file transfers.
+It supports HTTP and HTTPS protocols.
 
 
 ## Demo
