@@ -98,9 +98,8 @@ func (d *Download) Start() (err error) {
 		}
 	}()
 
-	var ctx context.Context
-
-	ctx, d.Cancel = context.WithCancel(context.Background())
+	ctx := context.Background()
+	ctx, d.Cancel = context.WithCancel(ctx)
 	defer d.Cancel()
 
 	if d.UI != nil {
@@ -193,7 +192,7 @@ func (d *Download) fetch(ctx context.Context, ep *endpoint, errCh chan<- error) 
 		return
 	}
 
-	err = CopyX(ctx, fio, r)
+	err = copyX(ctx, fio, r)
 	if err != nil {
 		if IsErr(err, context.Canceled) {
 			errCh <- ErrCancel
@@ -206,6 +205,24 @@ func (d *Download) fetch(ctx context.Context, ep *endpoint, errCh chan<- error) 
 
 	fio.PushState(Completed)
 	errCh <- nil
+
+}
+
+func (d *Download) InitFiles(partSize int64) (err error) {
+
+	if err := d.Files.SetByteRange(d.DataSize, partSize); err != nil {
+		return err
+	}
+
+	if err = d.Files.SetInitialState(); err != nil {
+		return err
+	}
+
+	if err := d.Files.RenewByState(d.ReDL); err != nil {
+		return err
+	}
+
+	return nil
 
 }
 
@@ -224,26 +241,8 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 		return nil, err
 	}
 
-	if err := d.Files.SetByteRange(d.DataSize, opt.PartSize); err != nil {
+	if err = d.InitFiles(opt.PartSize); err != nil {
 		return nil, err
-	}
-
-	if err = d.Files.SetInitialState(); err != nil {
-		return nil, err
-	}
-
-	if err := d.Files.RenewByState(d.ReDL); err != nil {
-		return nil, err
-	}
-
-	for _, b := range d.ReDL {
-		if !b {
-			continue
-		}
-		if err := d.Files.SetByteRange(d.DataSize, opt.PartSize); err != nil {
-			return nil, err
-		}
-		break
 	}
 
 	d.Flow = NewFlowControl(MaxConcurrentFetch)
@@ -450,7 +449,7 @@ func (dcs DataCasters) Close() (err error) {
 
 }
 
-func CopyX(ctx context.Context, w io.WriteCloser, r io.ReadCloser) (err error) {
+func copyX(ctx context.Context, w io.WriteCloser, r io.ReadCloser) (err error) {
 
 	go func() {
 		<-ctx.Done()

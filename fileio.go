@@ -190,6 +190,7 @@ func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 				return err
 			}
 			fio.Close()
+			fio.Scope.Offset = 0
 			fio.State = New
 		}
 
