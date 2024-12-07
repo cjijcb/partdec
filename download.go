@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 )
 
@@ -34,8 +35,7 @@ type (
 
 	DataCasters []DataCaster
 
-	DLStatus uint8
-	DLType   uint8
+	DLType uint8
 
 	endpoint struct {
 		src DataCaster
@@ -64,23 +64,18 @@ type (
 	Download struct {
 		Files    FileIOs
 		Sources  DataCasters
-		Flow     *FlowControl
 		URI      string
 		DataSize int64
 		Type     DLType
-		Status   DLStatus
 		ReDL     map[FileState]bool
 		UI       func(*Download)
-		Cancel   context.CancelFunc
+		Flow     *FlowControl
+		Stop     context.CancelFunc
+		ctx      context.Context
 	}
 )
 
 const (
-	Pending DLStatus = iota
-	Running
-	Stopping
-	Stopped
-
 	File DLType = iota
 	HTTP
 
@@ -94,39 +89,32 @@ func (d *Download) Start() (err error) {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "%s\n",
 				JoinErr(ToErr(r), d.Files.Close(), d.Sources.Close()))
-			d.PushStatus(Stopped)
 		}
 	}()
 
-	ctx := context.Background()
-	ctx, d.Cancel = context.WithCancel(ctx)
-	defer d.Cancel()
+	d.ctx, d.Stop = signal.NotifyContext(context.Background(), os.Interrupt)
+	defer d.Stop()
 
 	if d.UI != nil {
 		d.Flow.WG.Add(1)
 		go d.UI(d)
 	}
 
-	d.PushStatus(Running)
 	partCount := len(d.Files)
 	errCh := make(chan error, partCount)
 
 	d.Flow.WG.Add(1)
-	go d.FetchAll(ctx, errCh)
+	go d.fetchAll(errCh)
 
-	if err = CatchErr(errCh, partCount); err != nil {
-		d.Cancel()
-	}
-
-	d.PushStatus(Stopping)
+	err = CatchErr(errCh, partCount)
+	d.Stop()
 
 	d.Flow.WG.Wait()
-	d.PushStatus(Stopped)
 	return err
 
 }
 
-func (d *Download) FetchAll(ctx context.Context, errCh chan error) {
+func (d *Download) fetchAll(errCh chan error) {
 
 	defer func() {
 		d.Flow.WG.Done()
@@ -154,12 +142,12 @@ func (d *Download) FetchAll(ctx context.Context, errCh chan error) {
 
 		d.Flow.Acquire()
 		d.Flow.WG.Add(1)
-		go d.fetch(ctx, &endpoint{dc, fio}, errCh)
+		go d.fetch(&endpoint{dc, fio}, errCh)
 	}
 
 }
 
-func (d *Download) fetch(ctx context.Context, ep *endpoint, errCh chan<- error) {
+func (d *Download) fetch(ep *endpoint, errCh chan<- error) {
 
 	defer func() {
 		d.Flow.WG.Done()
@@ -192,7 +180,7 @@ func (d *Download) fetch(ctx context.Context, ep *endpoint, errCh chan<- error) 
 		return
 	}
 
-	err = copyX(ctx, fio, r)
+	err = copyX(d.ctx, fio, r)
 	if err != nil {
 		if IsErr(err, context.Canceled) {
 			errCh <- ErrCancel
@@ -252,14 +240,12 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 
 func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 
-	SharedTransport.DisableKeepAlives = opt.IOMode.NoConnReuse
-	SharedTransport.ResponseHeaderTimeout = opt.IOMode.Timeout
-
-	if opt.IOMode != nil {
-		md := opt.IOMode
+	if md := opt.IOMode; md != nil {
 		for k := range md.UserHeader {
 			SharedHeader.Set(k, md.UserHeader.Get(k))
 		}
+		SharedTransport.DisableKeepAlives = md.NoConnReuse
+		SharedTransport.ResponseHeaderTimeout = md.Timeout
 	}
 
 	hdr, cl, err := GetHeaders(opt.URI)
@@ -284,7 +270,6 @@ func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 		URI:      opt.URI,
 		DataSize: cl,
 		Type:     HTTP,
-		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
 	}, nil
@@ -316,7 +301,6 @@ func NewFileDownload(opt *DLOptions) (*Download, error) {
 		URI:      opt.URI,
 		DataSize: dataSize,
 		Type:     File,
-		Status:   Pending,
 		ReDL:     opt.ReDL,
 		UI:       opt.UI,
 	}, nil
@@ -419,22 +403,6 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 		}
 		return nil, ErrExhaust
 	}
-
-}
-
-func (d *Download) PullStatus() DLStatus {
-
-	mtx.Lock()
-	defer mtx.Unlock()
-	return d.Status
-
-}
-
-func (d *Download) PushStatus(ds DLStatus) {
-
-	mtx.Lock()
-	defer mtx.Unlock()
-	d.Status = ds
 
 }
 

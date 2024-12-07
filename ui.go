@@ -59,9 +59,7 @@ var (
 func ShowProgress(d *Download) {
 
 	defer d.Flow.WG.Done()
-	defer d.Cancel()
-
-	sig, interrSig := os.Signal(nil), Interrupt()
+	defer d.Stop()
 
 	tl := &Textile{new(strings.Builder), 0, TermWidth()}
 
@@ -71,35 +69,36 @@ func ShowProgress(d *Download) {
 	fr := NewFileReport(d.Files, d.DataSize)
 	defer fr.Flush()
 
+	interrupted := false
 	fmt.Print(hideCursor)
 	var resetDisplay string
-	for d.PullStatus() == Pending || d.PullStatus() == Running {
+	for {
 
 		select {
-		case sig = <-interrSig:
-			d.Cancel()
+		case <-d.ctx.Done():
+			interrupted = true
 		default:
 			fmt.Print(tl.ShowReport(fr))
+			switch {
+			case baseWidth == tl.Width:
+				resetDisplay = upLine(tl.Height)
+				fallthrough
+			case baseHeight == 0:
+				baseHeight = tl.Height
+			case baseHeight != tl.Height:
+				baseHeight = tl.Height
+				resetDisplay = homeCursor
+				fallthrough
+			default:
+				baseWidth = tl.Width
+				resetDisplay += clearToEnd
+			}
 		}
 
-		if sig != nil {
+		if interrupted {
 			break
 		}
 
-		switch {
-		case baseWidth == tl.Width:
-			resetDisplay = upLine(tl.Height)
-			fallthrough
-		case baseHeight == 0:
-			baseHeight = tl.Height
-		case baseHeight != tl.Height:
-			baseHeight = tl.Height
-			resetDisplay = homeCursor
-			fallthrough
-		default:
-			baseWidth = tl.Width
-			resetDisplay += clearToEnd
-		}
 		time.Sleep(150 * time.Millisecond)
 		fmt.Print(resetDisplay)
 	}
@@ -186,7 +185,6 @@ func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSe
 	var percentSec, bytesSec, cachedTotal = new(float32), new(int64), new(int64)
 
 	*percentSec = 0
-
 	update := func(final bool) {
 
 		currentTotal := fr.FileIOs.TotalSize()

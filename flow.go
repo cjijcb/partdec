@@ -17,10 +17,7 @@ limitations under the License.
 package partdec
 
 import (
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 )
 
 type FlowControl struct {
@@ -29,15 +26,6 @@ type FlowControl struct {
 }
 
 var mtx = &sync.Mutex{}
-
-func Interrupt() <-chan os.Signal {
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
-	return sigCh
-
-}
 
 func NewFlowControl(limit int) *FlowControl {
 
