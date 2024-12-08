@@ -1,7 +1,6 @@
 # partdec
 [![Go Report Card](https://goreportcard.com/badge/github.com/cjijcb/partdec)](https://goreportcard.com/report/github.com/cjijcb/partdec)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/af4b1b130f194d6caa0edeb4cce4d342)](https://app.codacy.com/gh/cjijcb/partdec/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/cjijcb/partdec/blob/master/LICENSE)
 
 **partdec** is a command-line utility for multipart downloading and file splitting. It can download a file in parts simultaneously from a remote or local source and distribute parts of the file to multiple destination paths.
 
@@ -159,13 +158,7 @@ Output File States:
     not support multipart downloading. </pre>
 </details>
 
-## Contributing
-Contributions are welcome from anyone interested in helping improve partdec. If you’d like to contribute:
-
-* **Create a [GitHub pull request](https://github.com/cjijcb/partdec/pulls)**: fork the repository, make your changes, and submit a pull request.
-* **Create a [GitHub issue](https://github.com/cjijcb/partdec/issues)**: report bugs, suggest features, or start discussions.
-
 ## License
 Copyright (C) 2024 Carlo Jay I. Jacaba
 
-partdec is licensed under the Apache License, Version 2.0. See the [LICENSE](https://github.com/cjijcb/partdec/blob/master/LICENSE) file for details.
+partdec is licensed under the Apache License, Version 2.0.
