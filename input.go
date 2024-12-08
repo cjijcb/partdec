@@ -151,6 +151,7 @@ func InitArgs(fs *flag.FlagSet) {
 	fs.VarP(&SizeFlag, "size", "s", "")
 	fs.StringVarP(&BaseFlag, "base", "b", "", "")
 	fs.StringSliceVarP(&DirFlag, "dir", "d", []string{""}, "")
+
 	fs.DurationVarP(&TimeoutFlag, "timeout", "t", 0, "")
 	fs.VarP(&HeaderFlag, "header", "H", "")
 
@@ -271,7 +272,7 @@ func (bs *ByteSize) Set(value string) error {
 	multiplier, found := ByteUnit[strings.ToUpper(unitStr)]
 
 	if !found {
-		return fmt.Errorf("parse error")
+		return NewErr("parse error")
 	}
 
 	if byteCount, err := strconv.ParseInt(byteStr, 10, 64); err == nil {

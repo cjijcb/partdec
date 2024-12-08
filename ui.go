@@ -26,34 +26,37 @@ import (
 )
 
 type (
-	Textile struct {
-		*strings.Builder
-		Height, Width int
+	textBlock struct {
+		b        *strings.Builder
+		height   int
+		width    int
+		hChanged bool
+		wChanged bool
 	}
 
-	BytesPerSec   = int64
-	PercentPerSec = float32
-
-	FileReport struct {
-		FileIOs
-		ReportFunc func() (PercentPerSec, BytesPerSec)
+	report struct {
+		fios       FileIOs
+		dsize      int64
+		fileReport func(int) int
+		rateReport func() int
+		text       *textBlock
 		finalCh    chan struct{}
-		tkr        *time.Ticker
+		onesec     *time.Ticker
 		startTime  time.Time
 	}
 )
 
 const (
-	ESC        rune = 27
-	clearToEnd      = string(ESC) + "[0J"
-	hideCursor      = string(ESC) + "[?25l"
-	showCursor      = string(ESC) + "[?25h"
-	homeCursor      = string(ESC) + "[H"
-	Div             = "----------------------------------------"
+	esc        rune = 27
+	clearToEnd      = string(esc) + "[0J"
+	hideCursor      = string(esc) + "[?25l"
+	showCursor      = string(esc) + "[?25h"
+	homeCursor      = string(esc) + "[H"
+	div             = "----------------------------------------"
 )
 
 var (
-	upLine = func(n int) string { return fmt.Sprintf("%c[%dF", ESC, n) }
+	upLine = func(n int) string { return fmt.Sprintf("%c[%dF", esc, n) }
 )
 
 func ShowProgress(d *Download) {
@@ -61,13 +64,8 @@ func ShowProgress(d *Download) {
 	defer d.Flow.WG.Done()
 	defer d.Stop()
 
-	tl := &Textile{new(strings.Builder), 0, TermWidth()}
-
-	baseWidth := tl.Width
-	baseHeight := tl.Height
-
-	fr := NewFileReport(d.Files, d.DataSize)
-	defer fr.Flush()
+	r := newReport(d.Files, d.DataSize)
+	defer r.flush()
 
 	interrupted := false
 	fmt.Print(hideCursor)
@@ -75,22 +73,17 @@ func ShowProgress(d *Download) {
 	for {
 
 		select {
-		case <-d.ctx.Done():
+		case <-d.Ctx.Done():
 			interrupted = true
 		default:
-			fmt.Print(tl.ShowReport(fr))
+			fmt.Print(r.show())
 			switch {
-			case baseWidth == tl.Width:
-				resetDisplay = upLine(tl.Height)
-				fallthrough
-			case baseHeight == 0:
-				baseHeight = tl.Height
-			case baseHeight != tl.Height:
-				baseHeight = tl.Height
+			case !r.text.wChanged:
+				resetDisplay = upLine(r.text.height)
+			case r.text.hChanged:
 				resetDisplay = homeCursor
 				fallthrough
 			default:
-				baseWidth = tl.Width
 				resetDisplay += clearToEnd
 			}
 		}
@@ -103,142 +96,166 @@ func ShowProgress(d *Download) {
 		fmt.Print(resetDisplay)
 	}
 
-	close(fr.finalCh)
-	fmt.Print(tl.ShowReport(fr) + showCursor)
+	close(r.finalCh)
+	fmt.Print(r.show() + showCursor)
 
 }
 
-func (tl *Textile) ShowReport(fr *FileReport) string {
+func (r *report) show() string {
 
-	defer tl.Reset()
+	defer r.text.b.Reset()
 
-	termWidth := TermWidth()
+	width := termWidth()
 
-	fmt.Fprintf(tl, "%-*s\n", termWidth, Div)
+	fmt.Fprintf(r.text.b, "%-*s\n", width, div)
 	lineCount := 1
 
-	for _, fio := range fr.FileIOs {
-		size, _ := fio.Size()
-		partSize := (fio.Scope.End - fio.Scope.Start) + 1
-		path := fio.Path.Relative
-		pad := 0
+	lineCount += r.fileReport(width)
 
-		lineCount++
-		runeCount := utf8.RuneCountInString(path) + 36 //(%-9s->%11s/%-11s| ) = 36 char
-		if termWidth >= runeCount {
-			pad = termWidth - runeCount
-		} else if termWidth > 0 {
-			lineCount += runeCount / termWidth
-		}
+	fmt.Fprintf(r.text.b, "%s\n", div)
+	lineCount += 1
 
-		fmt.Fprintf(tl,
-			"%-9s->%11s/%-11s| %-*s\n",
-			fio.PullState().String(),
-			ToEIC(size),
-			ToEIC(partSize),
-			pad,
-			path,
-		)
-	}
+	lineCount += r.rateReport()
 
-	percentSec, bytesSec := fr.ReportFunc()
+	r.text.hChanged = (r.text.height != lineCount)
+	r.text.wChanged = (r.text.width != width)
 
-	fmt.Fprintf(tl, "%s\n%6.2f%%  |%12s%s  |  %s\n", //two lines
-		Div,
-		percentSec,
-		ToEIC(bytesSec), "/s",
-		fr.Elapsed(),
-	)
+	r.text.height = lineCount
+	r.text.width = width
 
-	lineCount += 2
-
-	tl.Height = lineCount
-	tl.Width = termWidth
-
-	return tl.String()
+	return r.text.b.String()
 
 }
 
-func NewFileReport(fios FileIOs, dataSize int64) *FileReport {
+func newReport(fios FileIOs, dataSize int64) *report {
 
-	persec := time.NewTicker(time.Second)
+	tb := &textBlock{
+		b:      new(strings.Builder),
+		height: len(fios) + 3, //2 div plus 1 rate report
+		width:  termWidth(),
+	}
 
-	fr := &FileReport{
-		FileIOs:   fios,
+	r := &report{
+		fios:      fios,
+		dsize:     dataSize,
+		text:      tb,
 		finalCh:   make(chan struct{}, 1),
-		tkr:       persec,
+		onesec:    time.NewTicker(time.Second),
 		startTime: time.Now(),
 	}
 
-	fr.ReportFunc = fr.Reporter(dataSize)
-
-	return fr
+	r.rateReport = r.rateReporter()
+	r.fileReport = r.fileReporter()
+	return r
 
 }
 
-func (fr *FileReport) Flush() {
-	fr.tkr.Stop()
-}
+func (r *report) rateReporter() func() int {
 
-func (fr *FileReport) Reporter(dataSize int64) func() (PercentPerSec, BytesPerSec) {
+	var bytes, cachedTotal int64
+	var percent float32
 
-	var percentSec, bytesSec, cachedTotal = new(float32), new(int64), new(int64)
+	rateReport := new(string)
 
-	*percentSec = 0
-	update := func(final bool) {
-
-		currentTotal := fr.FileIOs.TotalSize()
-
-		if dataSize > 0 {
-			*percentSec = (float32(currentTotal) / float32(dataSize)) * 100
+	refresh := func(final bool) {
+		currentTotal := r.fios.TotalSize()
+		if r.dsize > 0 {
+			percent = (float32(currentTotal) / float32(r.dsize)) * 100
 		}
-		if !final || *bytesSec == 0 {
-			*bytesSec = currentTotal - *cachedTotal
-			*cachedTotal = currentTotal
+		if !final || bytes == 0 {
+			bytes = currentTotal - cachedTotal
+			cachedTotal = currentTotal
 		}
-
+		*rateReport = fmt.Sprintf("%6.2f%%  |%12s%s  |  %s",
+			percent,
+			toEIC(bytes), "/s",
+			r.elapsed(),
+		)
 	}
 
-	return func() (PercentPerSec, BytesPerSec) {
-
+	refresh(true)
+	return func() int {
 		select {
-		case <-fr.tkr.C:
-			update(false)
-			return *percentSec, *bytesSec
-		case <-fr.finalCh:
-			update(true)
-			return *percentSec, *bytesSec
+		case <-r.onesec.C:
+			refresh(false)
+			fmt.Fprintf(r.text.b, "%s\n", *rateReport)
+		case <-r.finalCh:
+			refresh(true)
+			fmt.Fprintf(r.text.b, "%s\n", *rateReport)
 		default:
-			return *percentSec, *bytesSec
+			fmt.Fprintf(r.text.b, "%s\n", *rateReport)
 		}
-
+		return 1
 	}
 
 }
 
-func (fr *FileReport) Elapsed() string {
+func (r *report) fileReporter() func(int) int {
 
-	elapsed := time.Since(fr.startTime)
-	hours := int(elapsed.Hours())
-	minutes := int(elapsed.Minutes()) % 60
-	seconds := int(elapsed.Seconds()) % 60
+	csize := len(r.fios)
+	cachedPartSize := make([]string, csize)
+	cachedPath := make([]string, csize)
+	cachedRuneCount := make([]int, csize)
 
-	var report string
-	if hours > 0 {
-		report += fmt.Sprintf("%dh", hours)
-	}
-	if minutes > 0 {
-		report += fmt.Sprintf("%dm", minutes)
-	}
-	if seconds > 0 || report == "" {
-		report += fmt.Sprintf("%ds", seconds)
+	for i, fio := range r.fios {
+		ps := (fio.Scope.End - fio.Scope.Start) + 1
+		pt := fio.Path.Relative
+		cachedPartSize[i] = toEIC(ps)
+		cachedPath[i] = pt
+		cachedRuneCount[i] = utf8.RuneCountInString(pt) + 36
 	}
 
-	return report
+	return func(width int) (lineCount int) {
+		for i, fio := range r.fios {
+			size, _ := fio.Size()
+			path := cachedPath[i]
+			runeCount := cachedRuneCount[i]
+
+			pad := 0
+			if width >= runeCount {
+				pad = width - runeCount
+			} else if width > 0 {
+				lineCount += runeCount / width
+			}
+
+			fmt.Fprintf(r.text.b,
+				"%-9s->%11s/%-11s| %-*s\n", //36 chars minus path
+				fio.PullState().String(),
+				toEIC(size),
+				cachedPartSize[i],
+				pad,
+				path,
+			)
+			lineCount++
+
+		}
+		return lineCount
+	}
 
 }
 
-func ToEIC(b int64) string {
+func (r *report) elapsed() (elapsed string) {
+
+	t := time.Since(r.startTime)
+	h := int(t.Hours())
+	m := int(t.Minutes()) % 60
+	s := int(t.Seconds()) % 60
+
+	if h > 0 {
+		elapsed += fmt.Sprintf("%dh", h)
+	}
+	if m > 0 {
+		elapsed += fmt.Sprintf("%dm", m)
+	}
+	if s > 0 || elapsed == "" {
+		elapsed += fmt.Sprintf("%ds", s)
+	}
+
+	return elapsed
+
+}
+
+func toEIC(b int64) string {
 
 	switch {
 	case b < 0:
@@ -257,9 +274,11 @@ func ToEIC(b int64) string {
 
 }
 
-func TermWidth() int {
-
+func termWidth() int {
 	width, _, _ := term.GetSize(int(os.Stdin.Fd()))
 	return width
+}
 
+func (r *report) flush() {
+	r.onesec.Stop()
 }

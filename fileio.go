@@ -26,6 +26,8 @@ import (
 type (
 	FileState uint8
 
+	FileResets map[FileState]bool
+
 	FilePath struct {
 		Base, DstDir, Relative string
 	}
@@ -165,7 +167,7 @@ func NewFileDataCaster(path string) (DataCaster, error) {
 	}, nil
 }
 
-func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
+func (fios FileIOs) RenewByState(fr FileResets) error {
 
 	for _, fio := range fios {
 
@@ -181,7 +183,7 @@ func (fios FileIOs) RenewByState(sm map[FileState]bool) error {
 			continue
 		}
 
-		if sm != nil && sm[fio.State] == true {
+		if fr != nil && fr[fio.State] == true {
 			if err := fio.Open(); err != nil {
 				return err
 			}
