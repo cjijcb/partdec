@@ -55,7 +55,7 @@ type (
 		DstDirs   []string
 		PartCount int
 		PartSize  int64
-		ReDL      map[FileState]bool
+		ReDL      FileResets
 		UI        func(*Download)
 		Force     bool
 		*IOMode
@@ -67,11 +67,11 @@ type (
 		URI      string
 		DataSize int64
 		Type     DLType
-		ReDL     map[FileState]bool
+		ReDL     FileResets
 		UI       func(*Download)
 		Flow     *FlowControl
 		Stop     context.CancelFunc
-		ctx      context.Context
+		Ctx      context.Context
 	}
 )
 
@@ -92,7 +92,7 @@ func (d *Download) Start() (err error) {
 		}
 	}()
 
-	d.ctx, d.Stop = signal.NotifyContext(context.Background(), os.Interrupt)
+	d.Ctx, d.Stop = signal.NotifyContext(context.Background(), os.Interrupt)
 	defer d.Stop()
 
 	if d.UI != nil {
@@ -180,7 +180,7 @@ func (d *Download) fetch(ep *endpoint, errCh chan<- error) {
 		return
 	}
 
-	err = copyX(d.ctx, fio, r)
+	err = copyX(d.Ctx, fio, r)
 	if err != nil {
 		if IsErr(err, context.Canceled) {
 			errCh <- ErrCancel
