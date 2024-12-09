@@ -42,11 +42,10 @@ type (
 		dst *FileIO
 	}
 
-	IOMode struct {
+	IOMod struct {
 		Timeout     time.Duration
 		UserHeader  http.Header
 		NoConnReuse bool
-		O_FLAGS     int
 	}
 
 	DLOptions struct {
@@ -58,7 +57,7 @@ type (
 		ReDL      FileResets
 		UI        func(*Download)
 		Force     bool
-		*IOMode
+		*IOMod
 	}
 
 	Download struct {
@@ -240,7 +239,7 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 
 func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 
-	if md := opt.IOMode; md != nil {
+	if md := opt.IOMod; md != nil {
 		for k := range md.UserHeader {
 			SharedHeader.Set(k, md.UserHeader.Get(k))
 		}
