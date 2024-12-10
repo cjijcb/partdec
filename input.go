@@ -31,11 +31,26 @@ import (
 )
 
 type (
-	Header struct {
-		http.Header
+	header struct {
+		h http.Header
 	}
 
-	ByteSize int64
+	byteSize int64
+
+	options struct {
+		fs          *flag.FlagSet
+		part        int
+		base        string
+		size        byteSize
+		timeout     time.Duration
+		header      header
+		dir         []string
+		reset       FileResets
+		force       bool
+		quiet       bool
+		version     bool
+		noConnReuse bool
+	}
 )
 
 const (
@@ -57,21 +72,6 @@ var VersionPage string
 var HelpPage string
 
 var (
-	PartFlag          int
-	BaseFlag          string
-	SizeFlag          ByteSize
-	TimeoutFlag       time.Duration
-	HeaderFlag        Header = Header{make(http.Header)}
-	DirFlag           []string
-	ZeroResumeFlag    bool
-	ZeroCompletedFlag bool
-	ZeroBrokenFlag    bool
-	ZeroAllFlag       bool
-	ForcePartFlag     bool
-	QuietFlag         bool
-	VersionFlag       bool
-	NoConnReuseFlag   bool
-
 	ByteUnit = map[string]int64{
 		"":  1,
 		"B": 1,
@@ -95,134 +95,152 @@ var (
 
 func NewDLOptions() (*DLOptions, error) {
 
-	InitArgs(flag.CommandLine)
-	uri, err := ParseArgs(flag.CommandLine)
-	err = HandleArgsErr(err)
+	opt := &options{fs: flag.CommandLine}
+
+	opt.init()
+	uri, err := opt.parse()
+
+	err = reqErrInfo(err)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var zmap map[FileState]bool
-	switch {
-	case ZeroAllFlag:
-		zmap = map[FileState]bool{Completed: true, Resume: true, Broken: true}
-	default:
-		zmap = map[FileState]bool{
-			Completed: ZeroCompletedFlag,
-			Resume:    ZeroResumeFlag,
-			Broken:    ZeroBrokenFlag,
-		}
-	}
-
 	var ui func(*Download)
-	switch {
-	case QuietFlag || ForcePartFlag:
+
+	if opt.quiet || opt.force {
 		ui = nil
-	default:
+	} else {
 		ui = ShowProgress
 	}
 
 	return &DLOptions{
 		URI:       uri,
-		BasePath:  BaseFlag,
-		DstDirs:   DirFlag,
-		PartCount: PartFlag,
-		PartSize:  int64(SizeFlag),
-		ReDL:      zmap,
+		BasePath:  opt.base,
+		DstDirs:   opt.dir,
+		PartCount: opt.part,
+		PartSize:  int64(opt.size),
+		ReDL:      opt.reset,
 		UI:        ui,
-		Force:     ForcePartFlag,
-		IOMode: &IOMode{
-			Timeout:     TimeoutFlag,
-			UserHeader:  HeaderFlag.Header,
-			NoConnReuse: NoConnReuseFlag,
+		Force:     opt.force,
+		Mod: &IOMod{
+			Timeout:     opt.timeout,
+			UserHeader:  opt.header.h,
+			NoConnReuse: opt.noConnReuse,
 		},
 	}, nil
 
 }
 
-func InitArgs(fs *flag.FlagSet) {
+func (opt *options) init() {
 
+	opt.reset = map[FileState]bool{
+		Broken: false, Completed: false, Resume: false,
+	}
+	opt.header.h = make(http.Header)
+
+	fs := opt.fs
 	fs.Init(os.Args[0], flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.Usage = func() {}
 
-	fs.IntVarP(&PartFlag, "part", "p", 1, "")
-	fs.VarP(&SizeFlag, "size", "s", "")
-	fs.StringVarP(&BaseFlag, "base", "b", "", "")
-	fs.StringSliceVarP(&DirFlag, "dir", "d", []string{""}, "")
+	fs.IntVarP(&opt.part, "part", "p", 1, "")
 
-	fs.DurationVarP(&TimeoutFlag, "timeout", "t", 0, "")
-	fs.VarP(&HeaderFlag, "header", "H", "")
+	fs.VarP(&opt.size, "size", "s", "")
 
-	fs.BoolVarP(&ForcePartFlag, "force", "f", false, "")
-	fs.BoolVarP(&QuietFlag, "quiet", "q", false, "")
-	fs.BoolVarP(&NoConnReuseFlag, "no-connection-reuse", "x", false, "")
-	fs.BoolVarP(&ZeroAllFlag, "reset", "z", false, "")
-	fs.BoolVarP(&ZeroBrokenFlag, "reset-broken", "B", false, "")
-	fs.BoolVarP(&ZeroCompletedFlag, "reset-completed", "C", false, "")
-	fs.BoolVarP(&ZeroResumeFlag, "reset-resume", "R", false, "")
+	fs.StringVarP(&opt.base, "base", "b", "", "")
 
-	fs.BoolVarP(&VersionFlag, "version", "V", false, "")
+	fs.StringSliceVarP(&opt.dir, "dir", "d", []string{""}, "")
+
+	fs.DurationVarP(&opt.timeout, "timeout", "t", 0, "")
+
+	fs.VarP(&opt.header, "header", "H", "")
+
+	fs.BoolVarP(&opt.force, "force", "f", false, "")
+
+	fs.BoolVarP(&opt.quiet, "quiet", "q", false, "")
+
+	fs.BoolVarP(&opt.noConnReuse, "no-connection-reuse", "x", false, "")
+
+	fs.VarP(&opt.reset, "reset", "z", "")
+	flag.Lookup("reset").NoOptDefVal = "1,2,3"
+
+	fs.BoolVarP(&opt.version, "version", "V", false, "")
 
 }
 
-func ParseArgs(fs *flag.FlagSet) (string, error) {
+func (opt *options) parse() (uri string, err error) {
 
-	err := fs.Parse(os.Args[1:])
+	fs := opt.fs
 
-	if err != nil {
+	if err = fs.Parse(os.Args[1:]); err != nil {
 		return "", err
 	}
 
-	if VersionFlag {
+	if opt.version {
 		return "", ErrVer
 	}
 
-	var uri string
-
 	args := fs.Args()
 
-	for len(args) > 0 {
-
-		switch {
-		case uri == "":
-			uri = args[0]
-		default:
-			return "", NewErr("%s: %s", ErrArgs, uri)
-		}
-
-		err := fs.Parse(args[1:])
-
-		if err != nil {
-			return "", err
-		}
-
-		args = fs.Args()
-	}
-
-	if uri == "" {
+	switch len(args) {
+	case 1:
+		uri = args[0]
+	case 0:
 		return "", flag.ErrHelp
+	default:
+		return "", NewErr("%s: %q", ErrArgs, strings.Join(args, " "))
 	}
 
 	return uri, nil
 
 }
 
-func HandleArgsErr(err error) error {
+func reqErrInfo(err error) error {
 
 	if err != nil {
-
 		switch {
 		case IsErr(err, ErrVer):
-			fmt.Fprintf(os.Stderr, "%s", VersionPage)
+			fmt.Printf("%s", VersionPage)
 		case IsErr(err, flag.ErrHelp):
-			fmt.Fprintf(os.Stderr, "%s", HelpPage)
+			fmt.Printf("%s", HelpPage)
 		default:
 			fmt.Fprintf(os.Stderr, "%s\n", err)
 		}
-
 		return err
+	}
+	return nil
+
+}
+
+func (fr *FileResets) String() string {
+	return fmt.Sprintf("%v", (*fr))
+}
+
+func (fr *FileResets) Type() string {
+	return "FileResets"
+}
+
+func (fr *FileResets) Set(value string) error {
+
+	(*fr) = map[FileState]bool{
+		Broken: false, Completed: false, Resume: false,
+	}
+
+	opt := strings.SplitN(value, ",", 3)
+
+	for _, o := range opt {
+
+		switch strings.TrimSpace(o) {
+		case "1":
+			(*fr)[Resume] = true
+		case "2":
+			(*fr)[Completed] = true
+		case "3":
+			(*fr)[Broken] = true
+		default:
+			return ErrParse
+		}
 
 	}
 
@@ -230,34 +248,34 @@ func HandleArgsErr(err error) error {
 
 }
 
-func (h *Header) String() string {
-	return fmt.Sprintf("%+v", h.Header)
+func (h *header) String() string {
+	return fmt.Sprintf("%+v", h.h)
 }
 
-func (h *Header) Type() string {
+func (h *header) Type() string {
 	return "Header"
 }
 
-func (h *Header) Set(value string) error {
+func (h *header) Set(value string) error {
 
-	if hKeyVal := strings.SplitN(value, ":", 2); len(hKeyVal) > 1 {
+	if kv := strings.SplitN(value, ":", 2); len(kv) > 1 {
 
-		h.Add(hKeyVal[0], strings.Trim(hKeyVal[1], " "))
+		h.h.Add(kv[0], strings.Trim(kv[1], " "))
 	}
 
 	return nil
 
 }
 
-func (bs *ByteSize) String() string {
+func (bs *byteSize) String() string {
 	return fmt.Sprintf("%d", *bs)
 }
 
-func (bs *ByteSize) Type() string {
+func (bs *byteSize) Type() string {
 	return "ByteSize"
 }
 
-func (bs *ByteSize) Set(value string) error {
+func (bs *byteSize) Set(value string) error {
 
 	unitStr := strings.TrimLeftFunc(
 		value,
@@ -272,11 +290,11 @@ func (bs *ByteSize) Set(value string) error {
 	multiplier, found := ByteUnit[strings.ToUpper(unitStr)]
 
 	if !found {
-		return NewErr("parse error")
+		return ErrParse
 	}
 
 	if byteCount, err := strconv.ParseInt(byteStr, 10, 64); err == nil {
-		*bs = ByteSize(byteCount * multiplier)
+		*bs = byteSize(byteCount * multiplier)
 	} else {
 		return err
 	}

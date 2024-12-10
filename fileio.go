@@ -467,14 +467,3 @@ func (fio *FileIO) PushState(fs FileState) {
 	fio.State = fs
 
 }
-
-func (fios FileIOs) Close() (err error) {
-
-	for _, fio := range fios {
-		if fio != nil && fio.isOpen {
-			err = JoinErr(err, fio.Close())
-		}
-	}
-	return err
-
-}
