@@ -4,63 +4,55 @@ Usage: partdec [OPTIONS]... <URI|LOCAL PATH>
 
 Options:
   -p, --part <N>
-            Split the file into N parts. If N is zero or less, it defaults to
-            1. If -s/--size is used, this option is ignored.
+          Split the file into N parts. It defaults to 1, if N is zero or
+          less. If -s/--size is used, this option is ignored.
 
   -s, --size <SIZE>
-            Split the file into parts of SIZE. SIZE is in byte size and can
-            include the following binary prefixes:
-            SI: KB, MB, GB, TB (case-insensitive)
-            IEC: KiB, MiB, GiB, TiB, or K, M, G, T (case-insensitive)
+          Split the file into parts of SIZE. SIZE is in byte size and can
+          include the following binary prefixes:
+          SI: KB, MB, GB, TB (case-insensitive)
+          IEC: KiB, MiB, GiB, TiB, or K, M, G, T (case-insensitive)
 
   -b, --base <PATH>
-            Set the base path for output files and also set their filename.
-            For multiple output files, an _N suffix is added, where N is an
-            incrementing number starting from 1.
+          Set the base path for output files and also set their filename.
+          For multiple output files, an _N suffix is added, where N is an
+          incrementing number starting from 1.
 
-  -d, --dir <PATH>
-            Set the destination directory for output files. PATH can be 
-            multiple comma-separated directories. This option can also be used
-            multiple times to specify multiple directories. Each specified
-            directory is combined with the base path (dir + base path).
+  -d, --dir <PATH>[,...]  
+          Set the destination directory for output files. Can be repeated 
+          and accepts comma-separated paths to specify multiple directories.
+          Base path is appended to each directory. 
+
+  -z, --reset[=INDEX,...]
+          Reset files to [new] state. Comma-separated INDEX values can be
+          provided to reset specific states. INDEX values are 1, 2, and 3
+          for [resume], [completed], and [broken], respectively. 
+          (e.g., -z, -z=1, or -z=1,3)
 
   -t, --timeout <TIME>
-            Set the HTTP request timeout. TIME is a number followed by a
-            suffix: ms, s, m, or h to represent milliseconds, seconds, minutes,
-            or hours, respectively (e.g., -t 1h2m3s). The default is 0, meaning
-            no timeout.
-
-  -x, --no-connection-reuse
-            Disable the HTTP Keep-Alive or connection reuse. This ensures a
-            separate connection per file part in multipart HTTP(S) downloads.
+          Set the HTTP request timeout. TIME is a number followed by a
+          suffix: ms, s, m, or h to represent milliseconds, seconds, minutes,
+          or hours, respectively (e.g., -t 1h2m3s). The default is 0, meaning
+          no timeout.
 
   -H, --header <HEADER_NAME:VALUE>
-            Set or add an HTTP header. This option can be used multiple times
-            to specify multiple headers. The Range header is ignored in
-            multipart HTTP(S) downloads. HEADER_NAME is case-insensitive.
+          Set or add an HTTP header. Can be repeated to specify multiple
+          headers. The Range header is ignored in multipart HTTP(S) downloads.
+          HEADER_NAME is case-insensitive.
+
+  -x, --no-connection-reuse
+          Disable the HTTP Keep-Alive or connection reuse. This ensures a
+          separate connection per file part in multipart HTTP(S) downloads.
 
   -f, --force
-            Override the soft limit (128) on the total number of output files.
-            This option also enables quiet mode.
+          Override the soft limit (128) on the total number of output files.
+          This option also disables output to stdout.
 
   -q, --quiet
-            Enable quiet mode.
-
-  -z, --reset
-            Reset files with an initial state of [completed], [resume], or
-            [broken] to [new]. Same as -CBR.
-
-  -C, --reset-completed
-            Reset files with an initial [completed] state to [new].
-
-  -B, --reset-broken
-            Reset files with an initial [broken] state to [new].
-
-  -R, --reset-resume
-            Reset files with an initial [resume] state to [new].
+          Disable output to stdout.
 
   -V, --version
-            Display version information.
+          Display version information.
 
 Output File States:
     File states are based on the initial size of files and may change during
