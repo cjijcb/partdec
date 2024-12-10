@@ -201,9 +201,9 @@ func reqErrInfo(err error) error {
 	if err != nil {
 		switch {
 		case IsErr(err, ErrVer):
-			fmt.Fprintf(os.Stderr, "%s", VersionPage)
+			fmt.Printf("%s", VersionPage)
 		case IsErr(err, flag.ErrHelp):
-			fmt.Fprintf(os.Stderr, "%s", HelpPage)
+			fmt.Printf("%s", HelpPage)
 		default:
 			fmt.Fprintf(os.Stderr, "%s\n", err)
 		}
