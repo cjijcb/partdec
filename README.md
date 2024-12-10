@@ -66,7 +66,7 @@ cat /tmp/archive.zip_* /var/archive.zip_* > ~/Downloads/my_archive.zip
 >The paths must be in ascending order based on the numeric suffix of the files,
 >from left (lowest numeric suffix) to (right highest numeric suffix).
 
-## Command-Line Usage
+## Usage Information
 
 Basic Options:
 ```
@@ -75,7 +75,7 @@ Basic Options:
   -b <PATH>  Set the base path for output files and also set their filename.
   -d <PATH>  Set the destination directory for output files. PATH can be comma-separated directories.
 ```
-See [Full Details](https://github.com/cjijcb/partdec/wiki/Command%E2%80%90Line-Usage).
+See [Full Usage Information](https://github.com/cjijcb/partdec/wiki/Command%E2%80%90Line-Usage-Information).
 
 ## License
 Copyright (C) 2024 Carlo Jay I. Jacaba
