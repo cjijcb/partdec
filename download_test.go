@@ -16,7 +16,7 @@ var (
 		ReDL:      map[FileState]bool{Completed: true, Resume: true, Broken: true},
 		UI:        nil,
 		Force:     false,
-		IOMode: &IOMode{
+		Mod: &IOMod{
 			Timeout:     0,
 			UserHeader:  nil,
 			NoConnReuse: false,
