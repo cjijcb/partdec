@@ -33,6 +33,7 @@ var (
 	ErrDLType     = NewErr("unknown download type")
 	ErrExhaust    = NewErr("resource exhausted")
 	ErrArgs       = NewErr("invalid argument")
+	ErrParse      = NewErr("parse error")
 	ErrPartLimit  = NewErr("exceeds output file count limit")
 	ErrVer        = NewErr("flag: version requested")
 )

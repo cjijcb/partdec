@@ -183,12 +183,13 @@ func (opt *options) parse() (uri string, err error) {
 
 	args := fs.Args()
 
-	if len(args) > 0 {
+	switch len(args) {
+	case 1:
 		uri = args[0]
-	}
-
-	if uri == "" {
+	case 0:
 		return "", flag.ErrHelp
+	default:
+		return "", NewErr("%s: %q", ErrArgs, strings.Join(args, " "))
 	}
 
 	return uri, nil
@@ -238,7 +239,7 @@ func (fr *FileResets) Set(value string) error {
 		case "3":
 			(*fr)[Broken] = true
 		default:
-			return NewErr("parse error")
+			return ErrParse
 		}
 
 	}
@@ -289,7 +290,7 @@ func (bs *byteSize) Set(value string) error {
 	multiplier, found := ByteUnit[strings.ToUpper(unitStr)]
 
 	if !found {
-		return NewErr("parse error")
+		return ErrParse
 	}
 
 	if byteCount, err := strconv.ParseInt(byteStr, 10, 64); err == nil {
