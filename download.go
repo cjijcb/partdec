@@ -33,10 +33,6 @@ type (
 		IsOpen() bool
 	}
 
-	DataCasters []DataCaster
-
-	DLType uint8
-
 	endpoint struct {
 		src DataCaster
 		dst *FileIO
@@ -48,6 +44,8 @@ type (
 		NoConnReuse bool
 	}
 
+	DLType uint8
+
 	DLOptions struct {
 		URI       string
 		BasePath  string
@@ -57,12 +55,12 @@ type (
 		ReDL      FileResets
 		UI        func(*Download)
 		Force     bool
-		*IOMod
+		Mod       *IOMod
 	}
 
 	Download struct {
 		Files    FileIOs
-		Sources  DataCasters
+		Sources  []DataCaster
 		URI      string
 		DataSize int64
 		Type     DLType
@@ -86,8 +84,7 @@ func (d *Download) Start() (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "%s\n",
-				JoinErr(ToErr(r), d.Files.Close(), d.Sources.Close()))
+			fmt.Fprintf(os.Stderr, "%s\n", ToErr(r))
 		}
 	}()
 
@@ -239,7 +236,7 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 
 func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 
-	if md := opt.IOMod; md != nil {
+	if md := opt.Mod; md != nil {
 		for k := range md.UserHeader {
 			SharedHeader.Set(k, md.UserHeader.Get(k))
 		}
@@ -402,17 +399,6 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 		}
 		return nil, ErrExhaust
 	}
-
-}
-
-func (dcs DataCasters) Close() (err error) {
-
-	for _, dc := range dcs {
-		if dc != nil && dc.IsOpen() {
-			err = JoinErr(err, dc.Close())
-		}
-	}
-	return err
 
 }
 

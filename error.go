@@ -41,12 +41,10 @@ func ToErr(a any) error {
 	return fmt.Errorf(fmt.Sprintf("%v", a))
 }
 
-func CatchErr(errCh chan error, maxErrCount int) error {
+func CatchErr(errCh chan error, maxErrCount int) (err error) {
 
-	var err error
 	errCount := 0
 	for catchedErr := range errCh {
-
 		if catchedErr != nil {
 			err = errors.Join(err, catchedErr)
 			if IsErr(catchedErr, ErrCancel) || IsErr(catchedErr, ErrAbort) {

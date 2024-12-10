@@ -123,7 +123,7 @@ func NewDLOptions() (*DLOptions, error) {
 		ReDL:      opt.reset,
 		UI:        ui,
 		Force:     opt.force,
-		IOMod: &IOMod{
+		Mod: &IOMod{
 			Timeout:     opt.timeout,
 			UserHeader:  opt.header.h,
 			NoConnReuse: opt.noConnReuse,
