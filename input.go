@@ -163,7 +163,7 @@ func (opt *options) init() {
 	fs.BoolVarP(&opt.noConnReuse, "no-connection-reuse", "x", false, "")
 
 	fs.VarP(&opt.reset, "reset", "z", "")
-	flag.Lookup("reset").NoOptDefVal = "0,1,2"
+	flag.Lookup("reset").NoOptDefVal = "1,2,3"
 
 	fs.BoolVarP(&opt.version, "version", "V", false, "")
 
@@ -231,12 +231,12 @@ func (fr *FileResets) Set(value string) error {
 	for _, o := range opt {
 
 		switch strings.TrimSpace(o) {
-		case "0":
-			(*fr)[Broken] = true
 		case "1":
-			(*fr)[Completed] = true
-		case "2":
 			(*fr)[Resume] = true
+		case "2":
+			(*fr)[Completed] = true
+		case "3":
+			(*fr)[Broken] = true
 		default:
 			return NewErr("parse error")
 		}
