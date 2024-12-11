@@ -64,7 +64,6 @@ type (
 		URI      string
 		DataSize int64
 		Type     DLType
-		ReDL     FileResets
 		UI       func(*Download)
 		Flow     *FlowControl
 		Stop     context.CancelFunc
@@ -192,7 +191,7 @@ func (d *Download) fetch(ep *endpoint, errCh chan<- error) {
 
 }
 
-func (d *Download) InitFiles(partSize int64) (err error) {
+func (d *Download) InitFiles(partSize int64, fr FileResets) (err error) {
 
 	if err := d.Files.SetByteRange(d.DataSize, partSize); err != nil {
 		return err
@@ -202,7 +201,7 @@ func (d *Download) InitFiles(partSize int64) (err error) {
 		return err
 	}
 
-	if err := d.Files.RenewByState(d.ReDL); err != nil {
+	if err := d.Files.RenewByState(fr); err != nil {
 		return err
 	}
 
@@ -214,9 +213,9 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 
 	switch {
 	case IsFile(opt.URI):
-		d, err = NewFileDownload(opt)
+		d, err = newFileDownload(opt)
 	case IsURL(opt.URI):
-		d, err = NewHTTPDownload(opt)
+		d, err = newHTTPDownload(opt)
 	default:
 		return nil, NewErr("%s: %s", ErrFileURL, opt.URI)
 	}
@@ -225,16 +224,27 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 		return nil, err
 	}
 
-	if err = d.InitFiles(opt.PartSize); err != nil {
+	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
+	if err != nil {
 		return nil, err
 	}
 
+	d.Files = fios
+
+	if err = d.InitFiles(opt.PartSize, opt.ReDL); err != nil {
+		return nil, err
+	}
+
+	d.Sources = make([]DataCaster, 2*MaxConcurrentFetch) //ring buffer
+	d.URI = opt.URI
+	d.UI = opt.UI
 	d.Flow = NewFlowControl(MaxConcurrentFetch)
+
 	return d, nil
 
 }
 
-func NewHTTPDownload(opt *DLOptions) (*Download, error) {
+func newHTTPDownload(opt *DLOptions) (*Download, error) {
 
 	if md := opt.Mod; md != nil {
 		for k := range md.UserHeader {
@@ -255,50 +265,30 @@ func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 
 	opt.ParseBasePath(hdr)
 
-	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Download{
-		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxConcurrentFetch), //ring buffer
-		URI:      opt.URI,
 		DataSize: cl,
 		Type:     HTTP,
-		ReDL:     opt.ReDL,
-		UI:       opt.UI,
 	}, nil
 
 }
 
-func NewFileDownload(opt *DLOptions) (*Download, error) {
+func newFileDownload(opt *DLOptions) (*Download, error) {
 
 	info, err := os.Stat(opt.URI)
 	if err != nil {
 		return nil, err
 	}
-	dataSize := info.Size()
+	fs := info.Size()
 
-	if err := opt.AlignPartCountSize(dataSize); err != nil {
+	if err := opt.AlignPartCountSize(fs); err != nil {
 		return nil, err
 	}
 
 	opt.ParseBasePath(nil)
 
-	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Download{
-		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxConcurrentFetch), //ring buffer
-		URI:      opt.URI,
-		DataSize: dataSize,
+		DataSize: fs,
 		Type:     File,
-		ReDL:     opt.ReDL,
-		UI:       opt.UI,
 	}, nil
 
 }
