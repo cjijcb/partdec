@@ -84,7 +84,7 @@ func (d *Download) Start() (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", ToErr(r))
+			fmt.Fprintf(os.Stderr, "%s\n", r)
 		}
 	}()
 
@@ -333,7 +333,7 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) error {
 	case opt.PartSize < 1:
 		opt.PartSize = UnknownSize
 	default:
-		opt.PartCount = 1 + int((dataSize-1)/opt.PartSize) // Ceiling division
+		opt.PartCount = 1 + int((dataSize-1)/opt.PartSize) //ceiling division
 	}
 
 	if opt.PartCount < 1 {
@@ -366,10 +366,10 @@ func (opt *DLOptions) ParseBasePath(hdr http.Header) {
 func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 	var (
-		gendc               func(string) (DataCaster, error)
-		dcs                 = d.Sources
-		maxRetry, lastIndex = len(dcs) + 1, len(dcs) - 1
-		i                   = -1
+		gendc   func(string) (DataCaster, error)
+		dcs     = d.Sources
+		retries = len(dcs) + 1
+		x       = 0
 	)
 	switch d.Type {
 	case File:
@@ -382,19 +382,15 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 		}
 	}
 
-	return func() (DataCaster, error) {
-		dc, err := gendc(d.URI)
-		if err != nil {
+	return func() (dc DataCaster, err error) {
+		if dc, err = gendc(d.URI); err != nil {
 			return nil, err
 		}
-		for range maxRetry {
-			i++
-			if i > lastIndex {
-				i = 0
-			}
-			if dcs[i] == nil || !dcs[i].IsOpen() {
-				dcs[i] = dc
-				return dcs[i], nil
+		for range retries {
+			x = (x + 1) % len(dcs) //circular indexing
+			if dcs[x] == nil || !dcs[x].IsOpen() {
+				dcs[x] = dc
+				return dcs[x], nil
 			}
 		}
 		return nil, ErrExhaust
