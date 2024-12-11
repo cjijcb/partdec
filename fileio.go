@@ -63,36 +63,36 @@ const (
 	PathSeparator = string(os.PathSeparator)
 )
 
-func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, error) {
+func BuildFileIOs(partCount int, base string, dirs []string) (FileIOs, error) {
 
-	if dstDirs == nil {
-		dstDirs = []string{""}
+	if dirs == nil {
+		dirs = []string{""}
 	}
 
-	fios := make([]*FileIO, partCount)
-	dirCount := len(dstDirs)
-	fioPerDirCount := partCount / dirCount
-	fioExtraCount := partCount % dirCount
+	fios := make(FileIOs, partCount)
+	dirCount := len(dirs)
+	perDir := partCount / dirCount
+	remains := partCount % dirCount
 	addIndex := FileNameIndexer(partCount)
 
-	var idx uint
-	for _, dir := range dstDirs {
+	var x int
+	for _, d := range dirs {
 
-		fioExtra := 0
-		if fioExtraCount > 0 {
-			fioExtra = 1
-			fioExtraCount--
+		e := 0
+		if remains > 0 {
+			e = 1
+			remains--
 		}
 
-		for range fioPerDirCount + fioExtra {
+		for range perDir + e {
 
-			fio, err := NewFileIO(addIndex(basePath), dir, os.O_CREATE|os.O_WRONLY)
+			fio, err := NewFileIO(addIndex(base), d, os.O_CREATE|os.O_WRONLY)
 			if err != nil {
 				return nil, err
 			}
 			fio.Close()
-			fios[idx] = fio
-			idx++
+			fios[x] = fio
+			x++
 		}
 
 	}
@@ -101,18 +101,18 @@ func BuildFileIOs(partCount int, basePath string, dstDirs []string) (FileIOs, er
 
 }
 
-func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
+func NewFileIO(base, dir string, oflag int) (*FileIO, error) {
 
-	var relvPath string
+	var relv string
 
 	switch {
-	case dstDir == "":
-		relvPath = filepath.Clean(basePath)
+	case dir == "":
+		relv = filepath.Clean(base)
 	default:
-		relvPath = filepath.Clean(dstDir + PathSeparator + basePath)
+		relv = filepath.Clean(dir + PathSeparator + base)
 	}
 
-	f, err := os.OpenFile(relvPath, oflag, FilePerm)
+	f, err := os.OpenFile(relv, oflag, FilePerm)
 
 	if err != nil {
 		return nil, err
@@ -121,9 +121,9 @@ func NewFileIO(basePath, dstDir string, oflag int) (*FileIO, error) {
 	return &FileIO{
 		File: f,
 		Path: FilePath{
-			Base:     basePath,
-			DstDir:   dstDir,
-			Relative: relvPath,
+			Base:     base,
+			DstDir:   dir,
+			Relative: relv,
 		},
 		Oflag:  oflag,
 		Perm:   FilePerm,
@@ -299,7 +299,7 @@ func (fios FileIOs) setByteRangeByPartCount(dataSize int64) error {
 
 }
 
-func (fios FileIOs) setByteRangeByPartSize(dataSize int64, partSize int64) error {
+func (fios FileIOs) setByteRangeByPartSize(dataSize, partSize int64) error {
 
 	var rangeStart, rangeEnd, offset int64
 
