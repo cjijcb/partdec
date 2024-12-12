@@ -187,9 +187,11 @@ func (opt *options) parse() (uri string, err error) {
 	case 1:
 		uri = args[0]
 	case 0:
-		return "", flag.ErrHelp
+		return "", NewErr("%s\n%s", ErrArgs,
+			"try 'partdec -h' for usage information")
 	default:
-		return "", NewErr("%s: %q", ErrArgs, strings.Join(args, " "))
+		return "", NewErr("%s: %q", ErrArgs,
+			strings.Join(args, " "))
 	}
 
 	return uri, nil

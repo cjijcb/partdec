@@ -29,7 +29,7 @@ var (
 	ErrCancel     = NewErr("canceled") //context.Canceled
 	ErrAbort      = NewErr("aborted")
 	ErrPartExceed = NewErr("output file size or total count exceeds the source file size")
-	ErrFileURL    = NewErr("inaccessible file or invalid URL")
+	ErrFileURL    = NewErr("inaccessible file or invalid URI")
 	ErrDLType     = NewErr("unknown download type")
 	ErrExhaust    = NewErr("resource exhausted")
 	ErrArgs       = NewErr("invalid argument")
