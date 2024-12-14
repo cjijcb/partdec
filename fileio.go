@@ -442,6 +442,10 @@ func (fio *FileIO) Close() error {
 	mtx.Lock()
 	defer mtx.Unlock()
 
+	if !fio.isOpen {
+		return nil
+	}
+
 	fio.isOpen = false
 	if fio.File != nil {
 		if err := fio.File.Close(); err != nil {

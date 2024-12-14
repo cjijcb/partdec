@@ -116,6 +116,10 @@ func (hio *HTTPIO) Close() error {
 	mtx.Lock()
 	defer mtx.Unlock()
 
+	if !hio.isOpen {
+		return nil
+	}
+
 	hio.isOpen = false
 	if hio.Body != nil {
 		if err := hio.Body.Close(); err != nil {
