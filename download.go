@@ -98,7 +98,7 @@ func (d *Download) Start() (err error) {
 	d.Flow.WG.Add(1)
 	go d.fetchAll(errCh)
 
-	err = CatchErr(errCh, partCount)
+	err = catchErr(errCh, partCount)
 	d.Stop()
 
 	d.Flow.WG.Wait()
@@ -129,7 +129,10 @@ func (d *Download) fetchAll(errCh chan error) {
 
 		d.Flow.Acquire()
 		d.Flow.WG.Add(1)
-		go d.fetch(&endpoint{c: d.Ctx, dc: dc, fio: fio}, errCh)
+		go d.fetch(
+			&endpoint{c: d.Ctx, dc: dc, fio: fio},
+			errCh,
+		)
 	}
 
 }
@@ -138,7 +141,6 @@ func (d *Download) fetch(e *endpoint, errCh chan<- error) {
 
 	defer d.Flow.WG.Done()
 	defer d.Flow.Release()
-	defer e.fio.Close()
 	defer e.dc.Close()
 
 	if err := e.fio.Open(); err != nil {
@@ -146,6 +148,7 @@ func (d *Download) fetch(e *endpoint, errCh chan<- error) {
 		errCh <- err
 		return
 	}
+	defer e.fio.Close()
 
 	if _, err := e.fio.Seek(0, io.SeekEnd); err != nil {
 		e.fio.PushState(Broken)

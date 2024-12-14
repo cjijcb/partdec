@@ -27,38 +27,36 @@ var (
 	IsErr   = errors.Is
 	NewErr  = fmt.Errorf
 
-	ErrCancel     = NewErr("canceled") //context.Canceled
+	ErrCancel     = NewErr("canceled")
 	ErrAbort      = NewErr("aborted")
-	ErrPartExceed = NewErr("output file size or total count exceeds the source file size")
+	ErrPartExceed = NewErr("part total count or size exceeds the source file size")
 	ErrFileURL    = NewErr("inaccessible file or invalid URI")
 	ErrDLType     = NewErr("unknown download type")
 	ErrExhaust    = NewErr("resource exhausted")
 	ErrArgs       = NewErr("invalid argument")
 	ErrParse      = NewErr("parse error")
 	ErrPartLimit  = NewErr("exceeds output file count limit")
-	ErrVer        = NewErr("flag: version requested")
+	ErrVer        = NewErr("version requested")
 )
 
-func ToErr(a any) error {
-	return fmt.Errorf(fmt.Sprintf("%v", a))
-}
-
-func CatchErr(errCh chan error, maxErrCount int) (err error) {
+func catchErr(errCh chan error, maxErrCount int) (err error) {
 
 	errCount := 0
 	for catched := range errCh {
-
-		if IsErr(catched, context.Canceled) {
-			catched = ErrCancel
-		}
-
 		if catched != nil {
-			err = errors.Join(err, catched)
-			if IsErr(catched, ErrCancel) || IsErr(catched, ErrAbort) {
+
+			if IsErr(catched, context.Canceled) {
+				err = JoinErr(err, ErrCancel)
 				break
 			}
-		}
 
+			if IsErr(catched, ErrAbort) {
+				err = JoinErr(err, ErrAbort)
+				break
+			}
+
+			err = JoinErr(err, catched)
+		}
 		if errCount++; errCount >= maxErrCount {
 			break
 		}
