@@ -18,6 +18,7 @@ package partdec
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -238,6 +239,10 @@ func newHTTPDownload(opt *DLOptions) (*Download, error) {
 	hdr, cl, err := GetHeaders(opt.URI)
 	if err != nil {
 		return nil, err
+	}
+
+	if cl < 0 && (opt.PartCount > 1 || opt.PartSize > 0) {
+		fmt.Fprintf(os.Stderr, "%s\n", ErrMultPart)
 	}
 
 	if err := opt.AlignPartCountSize(cl); err != nil {
