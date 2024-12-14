@@ -383,10 +383,8 @@ func (e *endpoint) copyWithRetry(retries int) (err error) {
 	casted := false
 	t := 0
 	for {
-
 		select {
 		case <-time.After(delay):
-
 			if !casted {
 				if e.r, err = e.dc.DataCast(e.fio.Scope); err == nil {
 					casted = true
@@ -411,7 +409,6 @@ func (e *endpoint) copyWithRetry(retries int) (err error) {
 		case <-e.c.Done():
 			return e.c.Err()
 		}
-
 	}
 
 }
