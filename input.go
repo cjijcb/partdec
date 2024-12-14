@@ -51,6 +51,7 @@ type (
 		force       bool
 		quiet       bool
 		version     bool
+		help        bool
 	}
 )
 
@@ -171,6 +172,8 @@ func (opt *options) init() {
 
 	fs.BoolVarP(&opt.version, "version", "V", false, "")
 
+	fs.BoolVarP(&opt.help, "help", "h", false, "")
+
 }
 
 func (opt *options) parse() (uri string, err error) {
@@ -183,6 +186,10 @@ func (opt *options) parse() (uri string, err error) {
 
 	if opt.version {
 		return "", ErrVer
+	}
+
+	if opt.help {
+		return "", flag.ErrHelp
 	}
 
 	args := fs.Args()
