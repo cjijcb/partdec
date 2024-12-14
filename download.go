@@ -18,7 +18,7 @@ package partdec
 
 import (
 	"context"
-	"fmt"
+	//"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -31,11 +31,6 @@ type (
 		DataCast(ByteRange) (io.ReadCloser, error)
 		Close() error
 		IsOpen() bool
-	}
-
-	endpoint struct {
-		src DataCaster
-		dst *FileIO
 	}
 
 	IOMod struct {
@@ -69,6 +64,14 @@ type (
 		Stop     context.CancelFunc
 		Ctx      context.Context
 	}
+
+	endpoint struct {
+		c   context.Context
+		dc  DataCaster
+		fio *FileIO
+		r   io.ReadCloser
+		w   io.WriteCloser
+	}
 )
 
 const (
@@ -80,12 +83,6 @@ const (
 )
 
 func (d *Download) Start() (err error) {
-
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", r)
-		}
-	}()
 
 	d.Ctx, d.Stop = signal.NotifyContext(context.Background(), os.Interrupt)
 	defer d.Stop()
@@ -111,12 +108,7 @@ func (d *Download) Start() (err error) {
 
 func (d *Download) fetchAll(errCh chan error) {
 
-	defer func() {
-		d.Flow.WG.Done()
-		if r := recover(); r != nil {
-			errCh <- ToErr(r)
-		}
-	}()
+	defer d.Flow.WG.Done()
 
 	gendc := d.DataCasterGenerator()
 
@@ -137,56 +129,40 @@ func (d *Download) fetchAll(errCh chan error) {
 
 		d.Flow.Acquire()
 		d.Flow.WG.Add(1)
-		go d.fetch(&endpoint{dc, fio}, errCh)
+		go d.fetch(&endpoint{c: d.Ctx, dc: dc, fio: fio}, errCh)
 	}
 
 }
 
-func (d *Download) fetch(ep *endpoint, errCh chan<- error) {
+func (d *Download) fetch(e *endpoint, errCh chan<- error) {
 
-	defer func() {
-		d.Flow.WG.Done()
-		d.Flow.Release()
-		if r := recover(); r != nil {
-			errCh <- ToErr(r)
-		}
-	}()
+	defer d.Flow.WG.Done()
+	defer d.Flow.Release()
+	defer e.fio.Close()
+	defer e.dc.Close()
 
-	dc := ep.src
-	fio := ep.dst
-	defer fio.Close()
-
-	if err := fio.Open(); err != nil {
-		fio.PushState(Broken)
+	if err := e.fio.Open(); err != nil {
+		e.fio.PushState(Broken)
 		errCh <- err
 		return
 	}
 
-	if _, err := fio.Seek(0, io.SeekEnd); err != nil {
-		fio.PushState(Broken)
+	if _, err := e.fio.Seek(0, io.SeekEnd); err != nil {
+		e.fio.PushState(Broken)
 		errCh <- err
 		return
 	}
 
-	r, err := dc.DataCast(fio.Scope)
-	defer dc.Close()
+	err := e.copyWithRetry(10)
 	if err != nil {
+		if !IsErr(err, context.Canceled) {
+			e.fio.PushState(Broken)
+		}
 		errCh <- err
 		return
 	}
 
-	err = copyX(d.Ctx, fio, r)
-	if err != nil {
-		if IsErr(err, context.Canceled) {
-			errCh <- ErrCancel
-		} else {
-			errCh <- err
-			fio.PushState(Broken)
-		}
-		return
-	}
-
-	fio.PushState(Completed)
+	e.fio.PushState(Completed)
 	errCh <- nil
 
 }
@@ -388,17 +364,49 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 }
 
-func copyX(ctx context.Context, w io.WriteCloser, r io.ReadCloser) (err error) {
+func (e *endpoint) copyWithRetry(retries int) (err error) {
 
 	go func() {
-		<-ctx.Done()
-		r.Close()
-		w.Close()
+		<-e.c.Done()
+		if e.r != nil {
+			e.r.Close()
+		}
+		e.fio.Close()
 	}()
-	_, err = io.Copy(w, r)
-	if ctx.Err() != nil {
-		return ctx.Err()
+
+	delay := time.Duration(0)
+	casted := false
+	t := 0
+	for {
+
+		select {
+		case <-time.After(delay):
+
+			if !casted {
+				if e.r, err = e.dc.DataCast(e.fio.Scope); err == nil {
+					casted = true
+				}
+			}
+
+			if casted {
+				if _, err = io.Copy(e.fio, e.r); err == nil {
+					return nil
+				}
+			}
+
+			if t++; t >= retries {
+				if e.c.Err() != nil {
+					return e.c.Err()
+				}
+				return err
+			}
+
+			delay = time.Second * 1 << min(t-1, 5) //32s max delay
+
+		case <-e.c.Done():
+			return e.c.Err()
+		}
+
 	}
-	return err
 
 }

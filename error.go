@@ -17,6 +17,7 @@ limitations under the License.
 package partdec
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
@@ -45,15 +46,20 @@ func ToErr(a any) error {
 func CatchErr(errCh chan error, maxErrCount int) (err error) {
 
 	errCount := 0
-	for catchedErr := range errCh {
-		if catchedErr != nil {
-			err = errors.Join(err, catchedErr)
-			if IsErr(catchedErr, ErrCancel) || IsErr(catchedErr, ErrAbort) {
+	for catched := range errCh {
+
+		if IsErr(catched, context.Canceled) {
+			catched = ErrCancel
+		}
+
+		if catched != nil {
+			err = errors.Join(err, catched)
+			if IsErr(catched, ErrCancel) || IsErr(catched, ErrAbort) {
 				break
 			}
 		}
 
-		if errCount++; errCount == maxErrCount {
+		if errCount++; errCount >= maxErrCount {
 			break
 		}
 	}
