@@ -18,7 +18,6 @@ package partdec
 
 import (
 	"context"
-	//"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -34,6 +33,7 @@ type (
 	}
 
 	IOMod struct {
+		Retry       int
 		Timeout     time.Duration
 		UserHeader  http.Header
 		NoConnReuse bool
@@ -60,6 +60,7 @@ type (
 		DataSize int64
 		Type     DLType
 		UI       func(*Download)
+		Mod      *IOMod
 		Flow     *FlowControl
 		Stop     context.CancelFunc
 		Ctx      context.Context
@@ -156,7 +157,7 @@ func (d *Download) fetch(e *endpoint, errCh chan<- error) {
 		return
 	}
 
-	err := e.copyWithRetry(10)
+	err := e.copyWithRetry(d.Mod.Retry)
 	if err != nil {
 		if !IsErr(err, context.Canceled) {
 			e.fio.PushState(Broken)
@@ -218,6 +219,7 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 	d.URI = opt.URI
 	d.UI = opt.UI
 	d.Flow = NewFlowControl(MaxConcurrentFetch)
+	d.Mod = opt.Mod
 
 	return d, nil
 

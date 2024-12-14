@@ -28,6 +28,12 @@ Options:
           provided to reset specific states. INDEX values are 1, 2, and 3
           for [resume], [completed], and [broken], respectively. 
           (e.g., -z or -z=1,3)
+  
+  -r, --retry <N>
+          Reset files to [new] state. Comma-separated INDEX values can be
+          provided to reset specific states. INDEX values are 1, 2, and 3
+          for [resume], [completed], and [broken], respectively. 
+          (e.g., -z or -z=1,3)
 
   -t, --timeout <TIME>
           Set the HTTP request timeout. TIME is a number followed by a

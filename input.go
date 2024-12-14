@@ -40,16 +40,17 @@ type (
 	options struct {
 		fs          *flag.FlagSet
 		part        int
-		base        string
 		size        byteSize
-		timeout     time.Duration
-		header      header
+		base        string
 		dir         []string
 		reset       FileResets
+		retry       int
+		timeout     time.Duration
+		header      header
+		noConnReuse bool
 		force       bool
 		quiet       bool
 		version     bool
-		noConnReuse bool
 	}
 )
 
@@ -124,6 +125,7 @@ func NewDLOptions() (*DLOptions, error) {
 		UI:        ui,
 		Force:     opt.force,
 		Mod: &IOMod{
+			Retry:       opt.retry,
 			Timeout:     opt.timeout,
 			UserHeader:  opt.header.h,
 			NoConnReuse: opt.noConnReuse,
@@ -152,18 +154,20 @@ func (opt *options) init() {
 
 	fs.StringSliceVarP(&opt.dir, "dir", "d", []string{""}, "")
 
+	fs.VarP(&opt.reset, "reset", "z", "")
+	flag.Lookup("reset").NoOptDefVal = "1,2,3"
+
+	fs.IntVarP(&opt.retry, "retry", "r", 5, "")
+
 	fs.DurationVarP(&opt.timeout, "timeout", "t", 0, "")
 
 	fs.VarP(&opt.header, "header", "H", "")
 
+	fs.BoolVarP(&opt.noConnReuse, "no-connection-reuse", "x", false, "")
+
 	fs.BoolVarP(&opt.force, "force", "f", false, "")
 
 	fs.BoolVarP(&opt.quiet, "quiet", "q", false, "")
-
-	fs.BoolVarP(&opt.noConnReuse, "no-connection-reuse", "x", false, "")
-
-	fs.VarP(&opt.reset, "reset", "z", "")
-	flag.Lookup("reset").NoOptDefVal = "1,2,3"
 
 	fs.BoolVarP(&opt.version, "version", "V", false, "")
 
