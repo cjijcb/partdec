@@ -125,7 +125,7 @@ func NewDLOptions() (*DLOptions, error) {
 		UI:        ui,
 		Force:     opt.force,
 		Mod: &IOMod{
-			Retry:       opt.retry,
+			Retry:       max(opt.retry, 0),
 			Timeout:     opt.timeout,
 			UserHeader:  opt.header.h,
 			NoConnReuse: opt.noConnReuse,
