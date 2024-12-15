@@ -218,7 +218,7 @@ func reqErrInfo(err error) error {
 		case IsErr(err, flag.ErrHelp):
 			fmt.Printf("%s", HelpPage)
 		default:
-			fmt.Fprintf(os.Stderr, "%s\n", err)
+			fmt.Fprintf(Stderr, "%s\n", err)
 		}
 		return err
 	}

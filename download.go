@@ -236,13 +236,13 @@ func newHTTPDownload(opt *DLOptions) (*Download, error) {
 		SharedTransport.ResponseHeaderTimeout = md.Timeout
 	}
 
-	hdr, cl, err := GetHeaders(opt.URI)
+	hdr, cl, err := getRespInfo(&opt.URI)
 	if err != nil {
 		return nil, err
 	}
 
 	if cl < 0 && (opt.PartCount > 1 || opt.PartSize > 0) {
-		fmt.Fprintf(os.Stderr, "%s\n", ErrMultPart)
+		fmt.Fprintf(Stderr, "%s\n", ErrMultPart)
 	}
 
 	if err := opt.AlignPartCountSize(cl); err != nil {

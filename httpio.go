@@ -147,38 +147,47 @@ func BuildRangeHeader(br ByteRange) string {
 
 }
 
-func GetHeaders(rawURL string) (http.Header, int64, error) {
+func getRespInfo(rawURL *string) (http.Header, int64, error) {
 
-	ct := &http.Client{Transport: SharedTransport}
+	ct := &http.Client{
+		Transport: SharedTransport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			*rawURL = req.URL.String()
+			fmt.Fprintf(Stderr, "%s to: %s\n", ErrRedir, *rawURL)
+			return nil
+		},
+	}
 
-	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
+	req, err := http.NewRequest(http.MethodHead, *rawURL, nil)
 	if err != nil {
 		return nil, UnknownSize, err
 	}
 
 	req.Header = SharedHeader
 
-	contLen := func(resp *http.Response) int64 {
-		if resp.Header.Get("Accept-Ranges") != "bytes" {
-			return UnknownSize
-		}
-		return resp.ContentLength
-	}
-
 	resp, err := ct.Do(req)
 	if err == nil && resp.ContentLength != UnknownSize {
-		return resp.Header, contLen(resp), nil
+		return resp.Header, calcContent(resp), nil
 	}
 
-	req.Method = http.MethodGet
+	req.Method = http.MethodGet //fallback to GET request
 	resp, err = ct.Do(req)
 
 	if err == nil {
 		defer resp.Body.Close()
-		return resp.Header, contLen(resp), nil
+		return resp.Header, calcContent(resp), nil
 	}
 
 	return nil, UnknownSize, err
+
+}
+
+func calcContent(resp *http.Response) int64 {
+
+	if resp.Header.Get("Accept-Ranges") != "bytes" {
+		return UnknownSize
+	}
+	return resp.ContentLength
 
 }
 
