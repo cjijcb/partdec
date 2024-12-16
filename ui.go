@@ -92,7 +92,7 @@ func ShowProgress(d *Download) {
 			break
 		}
 
-		time.Sleep(150 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 		fmt.Print(resetDisplay)
 	}
 

@@ -33,12 +33,8 @@ type (
 		IsOpen() bool
 	}
 
-	endpoint struct {
-		src DataCaster
-		dst *FileIO
-	}
-
 	IOMod struct {
+		Retry       int
 		Timeout     time.Duration
 		UserHeader  http.Header
 		NoConnReuse bool
@@ -64,11 +60,19 @@ type (
 		URI      string
 		DataSize int64
 		Type     DLType
-		ReDL     FileResets
 		UI       func(*Download)
+		Mod      *IOMod
 		Flow     *FlowControl
 		Stop     context.CancelFunc
 		Ctx      context.Context
+	}
+
+	endpoint struct {
+		c   context.Context
+		dc  DataCaster
+		fio *FileIO
+		r   io.ReadCloser
+		w   io.WriteCloser
 	}
 )
 
@@ -81,12 +85,6 @@ const (
 )
 
 func (d *Download) Start() (err error) {
-
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", ToErr(r))
-		}
-	}()
 
 	d.Ctx, d.Stop = signal.NotifyContext(context.Background(), os.Interrupt)
 	defer d.Stop()
@@ -102,7 +100,7 @@ func (d *Download) Start() (err error) {
 	d.Flow.WG.Add(1)
 	go d.fetchAll(errCh)
 
-	err = CatchErr(errCh, partCount)
+	err = catchErr(errCh, partCount)
 	d.Stop()
 
 	d.Flow.WG.Wait()
@@ -112,12 +110,7 @@ func (d *Download) Start() (err error) {
 
 func (d *Download) fetchAll(errCh chan error) {
 
-	defer func() {
-		d.Flow.WG.Done()
-		if r := recover(); r != nil {
-			errCh <- ToErr(r)
-		}
-	}()
+	defer d.Flow.WG.Done()
 
 	gendc := d.DataCasterGenerator()
 
@@ -138,61 +131,48 @@ func (d *Download) fetchAll(errCh chan error) {
 
 		d.Flow.Acquire()
 		d.Flow.WG.Add(1)
-		go d.fetch(&endpoint{dc, fio}, errCh)
+		go d.fetch(
+			&endpoint{c: d.Ctx, dc: dc, fio: fio},
+			errCh,
+		)
 	}
 
 }
 
-func (d *Download) fetch(ep *endpoint, errCh chan<- error) {
+func (d *Download) fetch(e *endpoint, errCh chan<- error) {
 
-	defer func() {
-		d.Flow.WG.Done()
-		d.Flow.Release()
-		if r := recover(); r != nil {
-			errCh <- ToErr(r)
-		}
-	}()
+	defer d.Flow.WG.Done()
+	defer d.Flow.Release()
+	defer e.dc.Close()
 
-	dc := ep.src
-	fio := ep.dst
-	defer fio.Close()
+	if err := e.fio.Open(); err != nil {
+		e.fio.PushState(Broken)
+		errCh <- err
+		return
+	}
+	defer e.fio.Close()
 
-	if err := fio.Open(); err != nil {
-		fio.PushState(Broken)
+	if _, err := e.fio.Seek(0, io.SeekEnd); err != nil {
+		e.fio.PushState(Broken)
 		errCh <- err
 		return
 	}
 
-	if _, err := fio.Seek(0, io.SeekEnd); err != nil {
-		fio.PushState(Broken)
-		errCh <- err
-		return
-	}
-
-	r, err := dc.DataCast(fio.Scope)
-	defer dc.Close()
+	err := e.copyWithRetry(d.Mod.Retry)
 	if err != nil {
+		if !IsErr(err, context.Canceled) {
+			e.fio.PushState(Broken)
+		}
 		errCh <- err
 		return
 	}
 
-	err = copyX(d.Ctx, fio, r)
-	if err != nil {
-		if IsErr(err, context.Canceled) {
-			errCh <- ErrCancel
-		} else {
-			errCh <- err
-			fio.PushState(Broken)
-		}
-		return
-	}
-
-	fio.PushState(Completed)
+	e.fio.PushState(Completed)
 	errCh <- nil
 
 }
 
-func (d *Download) InitFiles(partSize int64) (err error) {
+func (d *Download) InitFiles(partSize int64, fr FileResets) (err error) {
 
 	if err := d.Files.SetByteRange(d.DataSize, partSize); err != nil {
 		return err
@@ -202,7 +182,7 @@ func (d *Download) InitFiles(partSize int64) (err error) {
 		return err
 	}
 
-	if err := d.Files.RenewByState(d.ReDL); err != nil {
+	if err := d.Files.RenewByState(fr); err != nil {
 		return err
 	}
 
@@ -214,9 +194,9 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 
 	switch {
 	case IsFile(opt.URI):
-		d, err = NewFileDownload(opt)
+		d, err = newFileDownload(opt)
 	case IsURL(opt.URI):
-		d, err = NewHTTPDownload(opt)
+		d, err = newHTTPDownload(opt)
 	default:
 		return nil, NewErr("%s: %s", ErrFileURL, opt.URI)
 	}
@@ -225,16 +205,28 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 		return nil, err
 	}
 
-	if err = d.InitFiles(opt.PartSize); err != nil {
+	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
+	if err != nil {
 		return nil, err
 	}
 
+	d.Files = fios
+
+	if err = d.InitFiles(opt.PartSize, opt.ReDL); err != nil {
+		return nil, err
+	}
+
+	d.Sources = make([]DataCaster, 2*MaxConcurrentFetch) //ring buffer
+	d.URI = opt.URI
+	d.UI = opt.UI
 	d.Flow = NewFlowControl(MaxConcurrentFetch)
+	d.Mod = opt.Mod
+
 	return d, nil
 
 }
 
-func NewHTTPDownload(opt *DLOptions) (*Download, error) {
+func newHTTPDownload(opt *DLOptions) (*Download, error) {
 
 	if md := opt.Mod; md != nil {
 		for k := range md.UserHeader {
@@ -244,9 +236,13 @@ func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 		SharedTransport.ResponseHeaderTimeout = md.Timeout
 	}
 
-	hdr, cl, err := GetHeaders(opt.URI)
+	hdr, cl, err := getRespInfo(&opt.URI)
 	if err != nil {
 		return nil, err
+	}
+
+	if cl < 0 && (opt.PartCount > 1 || opt.PartSize > 0) {
+		fmt.Fprintf(Stderr, "%s\n", ErrMultPart)
 	}
 
 	if err := opt.AlignPartCountSize(cl); err != nil {
@@ -255,50 +251,30 @@ func NewHTTPDownload(opt *DLOptions) (*Download, error) {
 
 	opt.ParseBasePath(hdr)
 
-	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Download{
-		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxConcurrentFetch), //ring buffer
-		URI:      opt.URI,
 		DataSize: cl,
 		Type:     HTTP,
-		ReDL:     opt.ReDL,
-		UI:       opt.UI,
 	}, nil
 
 }
 
-func NewFileDownload(opt *DLOptions) (*Download, error) {
+func newFileDownload(opt *DLOptions) (*Download, error) {
 
 	info, err := os.Stat(opt.URI)
 	if err != nil {
 		return nil, err
 	}
-	dataSize := info.Size()
+	fs := info.Size()
 
-	if err := opt.AlignPartCountSize(dataSize); err != nil {
+	if err := opt.AlignPartCountSize(fs); err != nil {
 		return nil, err
 	}
 
 	opt.ParseBasePath(nil)
 
-	fios, err := BuildFileIOs(opt.PartCount, opt.BasePath, opt.DstDirs)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Download{
-		Files:    fios,
-		Sources:  make([]DataCaster, 2*MaxConcurrentFetch), //ring buffer
-		URI:      opt.URI,
-		DataSize: dataSize,
+		DataSize: fs,
 		Type:     File,
-		ReDL:     opt.ReDL,
-		UI:       opt.UI,
 	}, nil
 
 }
@@ -333,7 +309,7 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) error {
 	case opt.PartSize < 1:
 		opt.PartSize = UnknownSize
 	default:
-		opt.PartCount = 1 + int((dataSize-1)/opt.PartSize) // Ceiling division
+		opt.PartCount = 1 + int((dataSize-1)/opt.PartSize) //ceiling division
 	}
 
 	if opt.PartCount < 1 {
@@ -366,10 +342,10 @@ func (opt *DLOptions) ParseBasePath(hdr http.Header) {
 func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 	var (
-		gendc               func(string) (DataCaster, error)
-		dcs                 = d.Sources
-		maxRetry, lastIndex = len(dcs) + 1, len(dcs) - 1
-		i                   = -1
+		gendc   func(string) (DataCaster, error)
+		dcs     = d.Sources
+		retries = len(dcs) + 1
+		x       = 0
 	)
 	switch d.Type {
 	case File:
@@ -382,19 +358,15 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 		}
 	}
 
-	return func() (DataCaster, error) {
-		dc, err := gendc(d.URI)
-		if err != nil {
+	return func() (dc DataCaster, err error) {
+		if dc, err = gendc(d.URI); err != nil {
 			return nil, err
 		}
-		for range maxRetry {
-			i++
-			if i > lastIndex {
-				i = 0
-			}
-			if dcs[i] == nil || !dcs[i].IsOpen() {
-				dcs[i] = dc
-				return dcs[i], nil
+		for range retries {
+			x = (x + 1) % len(dcs) //circular indexing
+			if dcs[x] == nil || !dcs[x].IsOpen() {
+				dcs[x] = dc
+				return dcs[x], nil
 			}
 		}
 		return nil, ErrExhaust
@@ -402,17 +374,46 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 }
 
-func copyX(ctx context.Context, w io.WriteCloser, r io.ReadCloser) (err error) {
+func (e *endpoint) copyWithRetry(retries int) (err error) {
 
 	go func() {
-		<-ctx.Done()
-		r.Close()
-		w.Close()
+		<-e.c.Done()
+		if e.r != nil {
+			e.r.Close()
+		}
+		e.fio.Close()
 	}()
-	_, err = io.Copy(w, r)
-	if ctx.Err() != nil {
-		return ctx.Err()
+
+	delay := time.Duration(0)
+	casted := false
+	t := 0
+	for {
+		select {
+		case <-time.After(delay):
+			if !casted {
+				if e.r, err = e.dc.DataCast(e.fio.Scope); err == nil {
+					casted = true
+				}
+			}
+
+			if casted {
+				if _, err = io.Copy(e.fio, e.r); err == nil {
+					return nil
+				}
+			}
+
+			if t++; t >= retries {
+				if e.c.Err() != nil {
+					return e.c.Err()
+				}
+				return err
+			}
+
+			delay = time.Second * 1 << min(t-1, 5) //32s max delay
+
+		case <-e.c.Done():
+			return e.c.Err()
+		}
 	}
-	return err
 
 }

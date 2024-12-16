@@ -40,16 +40,18 @@ type (
 	options struct {
 		fs          *flag.FlagSet
 		part        int
-		base        string
 		size        byteSize
-		timeout     time.Duration
-		header      header
+		base        string
 		dir         []string
 		reset       FileResets
+		retry       int
+		timeout     time.Duration
+		header      header
+		noConnReuse bool
 		force       bool
 		quiet       bool
 		version     bool
-		noConnReuse bool
+		help        bool
 	}
 )
 
@@ -124,6 +126,7 @@ func NewDLOptions() (*DLOptions, error) {
 		UI:        ui,
 		Force:     opt.force,
 		Mod: &IOMod{
+			Retry:       max(opt.retry, 0),
 			Timeout:     opt.timeout,
 			UserHeader:  opt.header.h,
 			NoConnReuse: opt.noConnReuse,
@@ -152,20 +155,24 @@ func (opt *options) init() {
 
 	fs.StringSliceVarP(&opt.dir, "dir", "d", []string{""}, "")
 
+	fs.VarP(&opt.reset, "reset", "z", "")
+	flag.Lookup("reset").NoOptDefVal = "1,2,3"
+
+	fs.IntVarP(&opt.retry, "retry", "r", 5, "")
+
 	fs.DurationVarP(&opt.timeout, "timeout", "t", 0, "")
 
 	fs.VarP(&opt.header, "header", "H", "")
+
+	fs.BoolVarP(&opt.noConnReuse, "no-connection-reuse", "x", false, "")
 
 	fs.BoolVarP(&opt.force, "force", "f", false, "")
 
 	fs.BoolVarP(&opt.quiet, "quiet", "q", false, "")
 
-	fs.BoolVarP(&opt.noConnReuse, "no-connection-reuse", "x", false, "")
-
-	fs.VarP(&opt.reset, "reset", "z", "")
-	flag.Lookup("reset").NoOptDefVal = "1,2,3"
-
 	fs.BoolVarP(&opt.version, "version", "V", false, "")
+
+	fs.BoolVarP(&opt.help, "help", "h", false, "")
 
 }
 
@@ -181,15 +188,21 @@ func (opt *options) parse() (uri string, err error) {
 		return "", ErrVer
 	}
 
+	if opt.help {
+		return "", flag.ErrHelp
+	}
+
 	args := fs.Args()
 
 	switch len(args) {
 	case 1:
 		uri = args[0]
 	case 0:
-		return "", flag.ErrHelp
+		return "", NewErr("%s\n%s", ErrArgs,
+			"try 'partdec -h' for usage information")
 	default:
-		return "", NewErr("%s: %q", ErrArgs, strings.Join(args, " "))
+		return "", NewErr("%s: %q", ErrArgs,
+			strings.Join(args, " "))
 	}
 
 	return uri, nil
@@ -205,7 +218,7 @@ func reqErrInfo(err error) error {
 		case IsErr(err, flag.ErrHelp):
 			fmt.Printf("%s", HelpPage)
 		default:
-			fmt.Fprintf(os.Stderr, "%s\n", err)
+			fmt.Fprintf(Stderr, "%s\n", err)
 		}
 		return err
 	}
