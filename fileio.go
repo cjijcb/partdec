@@ -72,16 +72,16 @@ func BuildFileIOs(partCount int, base string, dirs []string) (FileIOs, error) {
 	fios := make(FileIOs, partCount)
 	dirCount := len(dirs)
 	perDir := partCount / dirCount
-	remains := partCount % dirCount
+	remainer := partCount % dirCount
 	addIndex := FileNameIndexer(partCount)
 
-	var x int
+	var i int
 	for _, d := range dirs {
 
 		e := 0
-		if remains > 0 {
+		if remainer > 0 {
 			e = 1
-			remains--
+			remainer--
 		}
 
 		for range perDir + e {
@@ -91,8 +91,8 @@ func BuildFileIOs(partCount int, base string, dirs []string) (FileIOs, error) {
 				return nil, err
 			}
 			fio.Close()
-			fios[x] = fio
-			x++
+			fios[i] = fio
+			i++
 		}
 
 	}
