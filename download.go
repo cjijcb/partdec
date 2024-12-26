@@ -55,16 +55,17 @@ type (
 	}
 
 	Download struct {
-		Files    FileIOs
-		Sources  []DataCaster
-		URI      string
-		DataSize int64
-		Type     DLType
-		UI       func(*Download)
-		Mod      *IOMod
-		Flow     *FlowControl
-		Stop     context.CancelFunc
-		Ctx      context.Context
+		Files     FileIOs
+		Sources   []DataCaster
+		URI       string
+		DataSize  int64
+		Type      DLType
+		UI        func(*Download)
+		Resumable bool
+		Mod       *IOMod
+		Flow      *FlowControl
+		Stop      context.CancelFunc
+		Ctx       context.Context
 	}
 
 	endpoint struct {
@@ -178,11 +179,18 @@ func (d *Download) InitFiles(partSize int64, fr FileResets) (err error) {
 		return err
 	}
 
-	if err = d.Files.SetInitialState(); err != nil {
-		return err
+	switch {
+	case !d.Resumable:
+		for _, fio := range d.Files {
+			fio.State = Unknown
+		}
+	default:
+		if err = d.Files.SetInitialState(); err != nil {
+			return err
+		}
 	}
 
-	if err := d.Files.RenewByState(fr); err != nil {
+	if err = d.Files.RenewByState(fr); err != nil {
 		return err
 	}
 
@@ -236,13 +244,21 @@ func newHTTPDownload(opt *DLOptions) (*Download, error) {
 		SharedTransport.ResponseHeaderTimeout = md.Timeout
 	}
 
-	hdr, cl, err := getRespInfo(&opt.URI)
+	var cl int64 = UnknownSize
+	resumable := true
+
+	hdr, err := getRespInfo(&opt.URI, &cl)
 	if err != nil {
 		return nil, err
 	}
 
-	if cl < 0 && (opt.PartCount > 1 || opt.PartSize > 0) {
+	if hdr.Get("Accept-Ranges") != "bytes" || cl < 0 {
+		resumable = false
+	}
+
+	if !resumable && (opt.PartCount > 1 || opt.PartSize > 0) {
 		fmt.Fprintf(Stderr, "%s\n", ErrMultPart)
+		opt.PartCount = 1
 	}
 
 	if err := opt.AlignPartCountSize(cl); err != nil {
@@ -252,8 +268,9 @@ func newHTTPDownload(opt *DLOptions) (*Download, error) {
 	opt.ParseBasePath(hdr)
 
 	return &Download{
-		DataSize: cl,
-		Type:     HTTP,
+		DataSize:  cl,
+		Type:      HTTP,
+		Resumable: resumable,
 	}, nil
 
 }
@@ -273,8 +290,9 @@ func newFileDownload(opt *DLOptions) (*Download, error) {
 	opt.ParseBasePath(nil)
 
 	return &Download{
-		DataSize: fs,
-		Type:     File,
+		DataSize:  fs,
+		Type:      File,
+		Resumable: true,
 	}, nil
 
 }

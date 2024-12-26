@@ -147,7 +147,7 @@ func BuildRangeHeader(br ByteRange) string {
 
 }
 
-func getRespInfo(rawURL *string) (http.Header, int64, error) {
+func getRespInfo(rawURL *string, cl *int64) (http.Header, error) {
 
 	ct := &http.Client{
 		Transport: SharedTransport,
@@ -160,14 +160,15 @@ func getRespInfo(rawURL *string) (http.Header, int64, error) {
 
 	req, err := http.NewRequest(http.MethodHead, *rawURL, nil)
 	if err != nil {
-		return nil, UnknownSize, err
+		return nil, err
 	}
 
 	req.Header = SharedHeader
 
 	resp, err := ct.Do(req)
 	if err == nil && resp.ContentLength != UnknownSize {
-		return resp.Header, calcContent(resp), nil
+		*cl = resp.ContentLength
+		return resp.Header, nil
 	}
 
 	req.Method = http.MethodGet //fallback to GET request
@@ -175,19 +176,11 @@ func getRespInfo(rawURL *string) (http.Header, int64, error) {
 
 	if err == nil {
 		defer resp.Body.Close()
-		return resp.Header, calcContent(resp), nil
+		*cl = resp.ContentLength
+		return resp.Header, nil
 	}
 
-	return nil, UnknownSize, err
-
-}
-
-func calcContent(resp *http.Response) int64 {
-
-	if resp.Header.Get("Accept-Ranges") != "bytes" {
-		return UnknownSize
-	}
-	return resp.ContentLength
+	return nil, err
 
 }
 
