@@ -90,7 +90,6 @@ func BuildFileIOs(partCount int, base string, dirs []string) (FileIOs, error) {
 			if err != nil {
 				return nil, err
 			}
-			fio.Close()
 			fios[i] = fio
 			i++
 		}
@@ -179,7 +178,8 @@ func (fios FileIOs) RenewByState(fr FileResets) error {
 			if err := fio.Truncate(0); err != nil {
 				return err
 			}
-			fio.Close()
+
+			fio.Scope.Offset = 0
 			continue
 		}
 
@@ -191,7 +191,7 @@ func (fios FileIOs) RenewByState(fr FileResets) error {
 			if err := fio.Truncate(0); err != nil {
 				return err
 			}
-			fio.Close()
+
 			fio.Scope.Offset = 0
 			fio.State = New
 		}
@@ -338,17 +338,6 @@ func (fios FileIOs) setByteRangeByPartSize(dataSize, partSize int64) error {
 
 }
 
-func (fio *FileIO) Open() (err error) {
-
-	fio.File, err = os.OpenFile(fio.Path.Relative, fio.Oflag, fio.Perm)
-	if err != nil {
-		return err
-	}
-
-	return nil
-
-}
-
 func newFileNameFromPath(path string) string {
 
 	return filepath.Base(path)
@@ -429,11 +418,51 @@ func (fios FileIOs) TotalSize() int64 {
 
 }
 
+func (fio *FileIO) SetOffset() error {
+
+	if fio.State == Unknown {
+		if err := fio.Open(); err != nil {
+			return err
+		}
+
+		if err := fio.Truncate(0); err != nil {
+			return err
+		}
+
+		fio.Seek(0, io.SeekStart)
+		fio.Scope.Offset = 0
+		return nil
+	}
+
+	if size, err := fio.Size(); err != nil {
+		return err
+	} else {
+		fio.Scope.Offset = size
+	}
+	return nil
+
+}
+
 func (fio *FileIO) IsOpen() bool {
 
 	mtx.Lock()
 	defer mtx.Unlock()
 	return fio.isOpen
+
+}
+
+func (fio *FileIO) Open() (err error) {
+
+	if fio.isOpen {
+		return nil
+	}
+
+	fio.File, err = os.OpenFile(fio.Path.Relative, fio.Oflag, fio.Perm)
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 }
 

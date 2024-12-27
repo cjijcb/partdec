@@ -403,18 +403,12 @@ func (e *endpoint) copyWithRetry(retries int) (err error) {
 	}()
 
 	delay := time.Duration(0)
-	casted := false
 	t := 0
 	for {
 		select {
 		case <-time.After(delay):
-			if !casted {
-				if e.r, err = e.dc.DataCast(e.fio.Scope); err == nil {
-					casted = true
-				}
-			}
 
-			if casted {
+			if e.r, err = e.dc.DataCast(e.fio.Scope); err == nil {
 				if _, err = io.Copy(e.fio, e.r); err == nil {
 					return nil
 				}
@@ -427,11 +421,16 @@ func (e *endpoint) copyWithRetry(retries int) (err error) {
 				return err
 			}
 
+			if err = e.fio.SetOffset(); err != nil {
+				return err
+			}
+
 			delay = time.Second * 1 << min(t-1, 5) //32s max delay
 
 		case <-e.c.Done():
 			return e.c.Err()
 		}
+
 	}
 
 }
