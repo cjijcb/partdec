@@ -116,6 +116,10 @@ func NewDLOptions() (*DLOptions, error) {
 		ui = ShowProgress
 	}
 
+	if opt.part > 1 || opt.size > 0 {
+		opt.header.h.Del("Range")
+	}
+
 	return &DLOptions{
 		URI:       uri,
 		BasePath:  opt.base,
@@ -140,6 +144,7 @@ func (opt *options) init() {
 	opt.reset = map[FileState]bool{
 		Broken: false, Completed: false, Resume: false,
 	}
+	opt.size = byteSize(UnknownSize)
 	opt.header.h = make(http.Header)
 
 	fs := opt.fs

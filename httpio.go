@@ -69,9 +69,9 @@ func NewHTTPIO(ct *http.Client, rawURL string) (*HTTPIO, error) {
 
 func (hio *HTTPIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
-	//	if !br.isFullRange { //overwrite Range header when there's partitioning
-	hio.Request.Header.Set("Range", BuildRangeHeader(br))
-	//	}
+	if !br.NotRangeable {
+		hio.Request.Header.Set("Range", BuildRangeHeader(br))
+	}
 
 	resp, err := hio.Client.Do(hio.Request)
 	if err != nil {

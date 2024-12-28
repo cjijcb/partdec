@@ -183,6 +183,7 @@ func (d *Download) InitFiles(partSize int64, fr FileResets) (err error) {
 	case !d.Resumable:
 		for _, fio := range d.Files {
 			fio.State = Unknown
+			fio.Scope.NotRangeable = true
 		}
 	default:
 		if err = d.Files.SetInitialState(); err != nil {
