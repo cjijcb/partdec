@@ -69,7 +69,7 @@ func NewHTTPIO(ct *http.Client, rawURL string) (*HTTPIO, error) {
 
 func (hio *HTTPIO) DataCast(br ByteRange) (io.ReadCloser, error) {
 
-	if !br.NotRangeable {
+	if !br.Indeterminate {
 		hio.Request.Header.Set("Range", BuildRangeHeader(br))
 	}
 

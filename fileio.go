@@ -34,7 +34,7 @@ type (
 
 	ByteRange struct {
 		Start, End, Offset int64
-		NotRangeable       bool
+		Indeterminate      bool
 	}
 
 	FileIO struct {
