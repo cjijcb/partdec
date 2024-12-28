@@ -171,9 +171,6 @@ func (fios FileIOs) RenewByState(fr FileResets) error {
 	for _, fio := range fios {
 
 		if fio.State == Unknown {
-			if err := fio.Open(); err != nil {
-				return err
-			}
 
 			if err := fio.Truncate(0); err != nil {
 				return err
@@ -181,12 +178,10 @@ func (fios FileIOs) RenewByState(fr FileResets) error {
 
 			fio.Scope.Offset = 0
 			continue
+
 		}
 
 		if fr != nil && fr[fio.State] == true {
-			if err := fio.Open(); err != nil {
-				return err
-			}
 
 			if err := fio.Truncate(0); err != nil {
 				return err
@@ -194,6 +189,7 @@ func (fios FileIOs) RenewByState(fr FileResets) error {
 
 			fio.Scope.Offset = 0
 			fio.State = New
+
 		}
 
 	}
@@ -410,9 +406,6 @@ func (fios FileIOs) TotalSize() int64 {
 func (fio *FileIO) SetOffset() error {
 
 	if fio.State == Unknown {
-		if err := fio.Open(); err != nil {
-			return err
-		}
 
 		if err := fio.Truncate(0); err != nil {
 			return err
@@ -470,6 +463,20 @@ func (fio *FileIO) Close() error {
 			return err
 		}
 	}
+	return nil
+
+}
+
+func (fio *FileIO) Truncate(size int64) error {
+
+	if err := fio.Open(); err != nil {
+		return err
+	}
+
+	if err := fio.File.Truncate(size); err != nil {
+		return err
+	}
+
 	return nil
 
 }
