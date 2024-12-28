@@ -68,8 +68,8 @@ Output File States:
     [resume]    File with non-zero initial size and within scope.  
     [completed] File that has reached its maximum size.  
     [broken]    File exceeding maximum size or with I/O errors.  
-    [unknown]   File with undetermined scope.
+    [unknown]   File with an indeterminate scope.
 
     A file with the [unknown] state is always truncated to zero size on every
-    run with the same arguments. This state occurs when an HTTP(S) server does
-    not support multipart downloading.
+    run with the same arguments. This state occurs when a remote server does
+    not support multipart or segmented downloads.
