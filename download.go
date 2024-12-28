@@ -397,10 +397,10 @@ func (e *endpoint) copyWithRetry(retries int) (err error) {
 
 	go func() {
 		<-e.c.Done()
+		e.fio.Close()
 		if e.r != nil {
 			e.r.Close()
 		}
-		e.fio.Close()
 	}()
 
 	delay := time.Duration(0)

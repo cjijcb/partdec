@@ -164,36 +164,29 @@ func NewFileDataCaster(path string) (DataCaster, error) {
 		},
 		isOpen: true,
 	}, nil
+
 }
 
 func (fios FileIOs) RenewByState(fr FileResets) error {
 
 	for _, fio := range fios {
 
-		if fio.State == Unknown {
+		if fio.State == Unknown || (fr != nil && fr[fio.State]) {
 
-			if err := fio.Truncate(0); err != nil {
+			if err := fio.Open(); err != nil {
 				return err
 			}
-
-			fio.Scope.Offset = 0
-			continue
-
-		}
-
-		if fr != nil && fr[fio.State] == true {
-
-			if err := fio.Truncate(0); err != nil {
+			if err := fio.File.Truncate(0); err != nil {
 				return err
 			}
-
+			if fio.State != Unknown {
+				fio.State = New
+			}
 			fio.Scope.Offset = 0
-			fio.State = New
 
 		}
 
 	}
-
 	return nil
 
 }
@@ -410,10 +403,10 @@ func (fio *FileIO) SetOffset() error {
 		if err := fio.Truncate(0); err != nil {
 			return err
 		}
-
 		fio.Seek(0, io.SeekEnd)
 		fio.Scope.Offset = 0
 		return nil
+
 	}
 
 	if size, err := fio.Size(); err != nil {
@@ -472,6 +465,9 @@ func (fio *FileIO) Truncate(size int64) error {
 	if err := fio.Open(); err != nil {
 		return err
 	}
+
+	mtx.Lock()
+	defer mtx.Unlock()
 
 	if err := fio.File.Truncate(size); err != nil {
 		return err
