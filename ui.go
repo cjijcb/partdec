@@ -166,7 +166,7 @@ func (r *report) rateReporter() func() int {
 			bytes = currentTotal - cachedTotal
 			cachedTotal = currentTotal
 		}
-		*rateReport = fmt.Sprintf("%6.2f%%  |%12s%s  |  %s",
+		*rateReport = fmt.Sprintf("%6.2f%%  |%12s%s  |  %-6s",
 			percent,
 			toEIC(bytes), "/s",
 			r.elapsed(),
