@@ -39,7 +39,7 @@ var (
 	ErrArgs       = NewErr("invalid argument")
 	ErrParse      = NewErr("parse error")
 	ErrPartLimit  = NewErr("exceeds output file count limit")
-	ErrMultPart   = NewErr("server does not support multipart/segmented downloads")
+	ErrMultPart   = NewErr("server does not support multipart or segmented downloads")
 	ErrRedir      = NewErr("redirected")
 	ErrVer        = NewErr("version requested")
 )

@@ -34,7 +34,7 @@ type (
 
 	ByteRange struct {
 		Start, End, Offset int64
-		isFullRange        bool
+		Indeterminate      bool
 	}
 
 	FileIO struct {
@@ -72,16 +72,15 @@ func BuildFileIOs(partCount int, base string, dirs []string) (FileIOs, error) {
 	fios := make(FileIOs, partCount)
 	dirCount := len(dirs)
 	perDir := partCount / dirCount
-	remains := partCount % dirCount
+	remainer := partCount % dirCount
 	addIndex := FileNameIndexer(partCount)
 
-	var x int
+	var i, e int
 	for _, d := range dirs {
 
-		e := 0
-		if remains > 0 {
+		if e = 0; remainer > 0 {
 			e = 1
-			remains--
+			remainer--
 		}
 
 		for range perDir + e {
@@ -90,9 +89,9 @@ func BuildFileIOs(partCount int, base string, dirs []string) (FileIOs, error) {
 			if err != nil {
 				return nil, err
 			}
-			fio.Close()
-			fios[x] = fio
-			x++
+			fios[i] = fio
+			i++
+
 		}
 
 	}
@@ -165,39 +164,29 @@ func NewFileDataCaster(path string) (DataCaster, error) {
 		},
 		isOpen: true,
 	}, nil
+
 }
 
 func (fios FileIOs) RenewByState(fr FileResets) error {
 
 	for _, fio := range fios {
 
-		if fio.State == Unknown {
+		if fio.State == Unknown || (fr != nil && fr[fio.State]) {
+
 			if err := fio.Open(); err != nil {
 				return err
 			}
-
-			if err := fio.Truncate(0); err != nil {
+			if err := fio.File.Truncate(0); err != nil {
 				return err
 			}
-			fio.Close()
-			continue
-		}
-
-		if fr != nil && fr[fio.State] == true {
-			if err := fio.Open(); err != nil {
-				return err
+			if fio.State != Unknown {
+				fio.State = New
 			}
-
-			if err := fio.Truncate(0); err != nil {
-				return err
-			}
-			fio.Close()
 			fio.Scope.Offset = 0
-			fio.State = New
+
 		}
 
 	}
-
 	return nil
 
 }
@@ -234,10 +223,6 @@ func (fios FileIOs) SetInitialState() error {
 
 func (fios FileIOs) SetByteRange(dataSize int64, partSize int64) error {
 
-	if len(fios) == 1 {
-		fios[0].Scope.isFullRange = true
-	}
-
 	if dataSize < 0 {
 		for _, fio := range fios {
 			fio.Scope.Start = 1 // end - start + 1 = -1
@@ -262,7 +247,7 @@ func (fios FileIOs) SetByteRange(dataSize int64, partSize int64) error {
 
 func (fios FileIOs) setByteRangeByPartCount(dataSize int64) error {
 
-	var rangeStart, rangeEnd, offset, extraByte int64
+	var rangeStart, rangeEnd, offset, e int64
 
 	partCount := len(fios)
 	basePartSize := dataSize / int64(partCount)
@@ -271,27 +256,25 @@ func (fios FileIOs) setByteRangeByPartCount(dataSize int64) error {
 	var i int
 	for i, offset = 0, 0; i < partCount; i, offset = i+1, offset+basePartSize {
 
-		extraByte = 0
-		if remainder > 0 {
-			extraByte = 1
+		if e = 0; remainder > 0 {
+			e = 1
 			remainder--
 		}
 
 		rangeStart = offset
-		rangeEnd = (rangeStart - 1) + basePartSize + extraByte
-		offset = offset + extraByte
+		rangeEnd = (rangeStart - 1) + basePartSize + e
+		offset = offset + e
 
 		fio := fios[i]
 
 		fio.Scope.Start = rangeStart
 		fio.Scope.End = rangeEnd
-		size, err := fio.Size()
 
-		if err != nil {
+		if size, err := fio.Size(); err != nil {
 			return err
+		} else {
+			fio.Scope.Offset = size
 		}
-
-		fio.Scope.Offset = size
 
 	}
 
@@ -303,12 +286,7 @@ func (fios FileIOs) setByteRangeByPartSize(dataSize, partSize int64) error {
 
 	var rangeStart, rangeEnd, offset int64
 
-	partCount := int(dataSize / partSize)
-	remainder := dataSize % partSize
-
-	if remainder > 0 {
-		partCount++
-	}
+	partCount := 1 + int((dataSize-1)/partSize) //ceiling division
 
 	var i int
 	for i, offset = 0, 0; i < partCount; i, offset = i+1, offset+partSize {
@@ -325,24 +303,13 @@ func (fios FileIOs) setByteRangeByPartSize(dataSize, partSize int64) error {
 
 		fio.Scope.Start = rangeStart
 		fio.Scope.End = rangeEnd
-		size, err := fio.Size()
 
-		if err != nil {
+		if size, err := fio.Size(); err != nil {
 			return err
+		} else {
+			fio.Scope.Offset = size
 		}
 
-		fio.Scope.Offset = size
-	}
-
-	return nil
-
-}
-
-func (fio *FileIO) Open() (err error) {
-
-	fio.File, err = os.OpenFile(fio.Path.Relative, fio.Oflag, fio.Perm)
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -429,11 +396,48 @@ func (fios FileIOs) TotalSize() int64 {
 
 }
 
+func (fio *FileIO) SetOffset() error {
+
+	if fio.State == Unknown {
+
+		if err := fio.Truncate(0); err != nil {
+			return err
+		}
+		fio.Seek(0, io.SeekEnd)
+		fio.Scope.Offset = 0
+		return nil
+
+	}
+
+	if size, err := fio.Size(); err != nil {
+		return err
+	} else {
+		fio.Scope.Offset = size
+	}
+	return nil
+
+}
+
 func (fio *FileIO) IsOpen() bool {
 
 	mtx.Lock()
 	defer mtx.Unlock()
 	return fio.isOpen
+
+}
+
+func (fio *FileIO) Open() (err error) {
+
+	if fio.isOpen {
+		return nil
+	}
+
+	fio.File, err = os.OpenFile(fio.Path.Relative, fio.Oflag, fio.Perm)
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 }
 
@@ -452,6 +456,23 @@ func (fio *FileIO) Close() error {
 			return err
 		}
 	}
+	return nil
+
+}
+
+func (fio *FileIO) Truncate(size int64) error {
+
+	if err := fio.Open(); err != nil {
+		return err
+	}
+
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	if err := fio.File.Truncate(size); err != nil {
+		return err
+	}
+
 	return nil
 
 }
