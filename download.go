@@ -393,6 +393,7 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 }
 
+// copyWithRetry attempts to copy data from a DataCaster to the file I/O with retry logic.
 func (e *endpoint) copyWithRetry(retries int) (err error) {
 
 	go func() {
