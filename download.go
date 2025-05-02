@@ -27,6 +27,8 @@ import (
 )
 
 type (
+	// Interface with methods for casting a range of bytes and managing the
+	// lifecycle of a data stream.
 	DataCaster interface {
 		DataCast(ByteRange) (io.ReadCloser, error)
 		Close() error
@@ -54,6 +56,7 @@ type (
 		Mod       *IOMod
 	}
 
+	// Manages the entire download process.
 	Download struct {
 		Files     FileIOs
 		Sources   []DataCaster
@@ -68,6 +71,7 @@ type (
 		Ctx       context.Context
 	}
 
+	// Represents an individual file transfer endpoint for downloading.
 	endpoint struct {
 		c   context.Context
 		dc  DataCaster
@@ -85,6 +89,8 @@ const (
 	MaxConcurrentFetch = 32
 )
 
+// Initiates the download process by setting up context handling, UI updates,
+// and concurrent fetching of all file parts.
 func (d *Download) Start() (err error) {
 
 	d.Ctx, d.Stop = signal.NotifyContext(context.Background(), os.Interrupt)
@@ -109,6 +115,7 @@ func (d *Download) Start() (err error) {
 
 }
 
+// Manages the concurrent fetching of all file parts.
 func (d *Download) fetchAll(errCh chan error) {
 
 	defer d.Flow.WG.Done()
@@ -140,6 +147,7 @@ func (d *Download) fetchAll(errCh chan error) {
 
 }
 
+// Handles the transfer of a single file part.
 func (d *Download) fetch(e *endpoint, errCh chan<- error) {
 
 	defer d.Flow.WG.Done()
@@ -173,6 +181,8 @@ func (d *Download) fetch(e *endpoint, errCh chan<- error) {
 
 }
 
+// Initializes the file parts for download by setting their byte ranges
+// and determining their initial state based on resumability
 func (d *Download) InitFiles(partSize int64, fr FileResets) (err error) {
 
 	if err := d.Files.SetByteRange(d.DataSize, partSize); err != nil {
@@ -199,6 +209,9 @@ func (d *Download) InitFiles(partSize int64, fr FileResets) (err error) {
 
 }
 
+// Creates a new Download instance based on the provided DLOptions.
+// It determines the download type (file or HTTP), initializes file I/O handlers,
+// and sets up download configurations.
 func NewDownload(opt *DLOptions) (d *Download, err error) {
 
 	switch {
@@ -235,12 +248,15 @@ func NewDownload(opt *DLOptions) (d *Download, err error) {
 
 }
 
+// Initializes an HTTP-based download, determining its resumability,
+// part count, and other settings based on HTTP headers.
 func newHTTPDownload(opt *DLOptions) (*Download, error) {
 
 	if md := opt.Mod; md != nil {
 		for k := range md.UserHeader {
 			SharedHeader.Set(k, md.UserHeader.Get(k))
 		}
+		SharedTransport.CloseIdleConnections()
 		SharedTransport.DisableKeepAlives = md.NoConnReuse
 		SharedTransport.ResponseHeaderTimeout = md.Timeout
 	}
@@ -276,6 +292,8 @@ func newHTTPDownload(opt *DLOptions) (*Download, error) {
 
 }
 
+// Initializes a local file download by determining the file size
+// and setting its part count and size.
 func newFileDownload(opt *DLOptions) (*Download, error) {
 
 	info, err := os.Stat(opt.URI)
@@ -298,6 +316,7 @@ func newFileDownload(opt *DLOptions) (*Download, error) {
 
 }
 
+// Generates a file name based on headers, URL, or file path.
 func NewFileName(uri string, hdr http.Header) string {
 
 	if fileName := newFileNameFromHeader(hdr); fileName != "" {
@@ -316,6 +335,7 @@ func NewFileName(uri string, hdr http.Header) string {
 
 }
 
+// Adjusts the part count and size to fit the given data size.
 func (opt *DLOptions) AlignPartCountSize(dataSize int64) error {
 
 	if dataSize < 1 {
@@ -347,6 +367,8 @@ func (opt *DLOptions) AlignPartCountSize(dataSize int64) error {
 
 }
 
+// Sets the base path for storing the file, appending the file name
+// if the base path ends with a separator.
 func (opt *DLOptions) ParseBasePath(hdr http.Header) {
 
 	switch {
@@ -358,6 +380,8 @@ func (opt *DLOptions) ParseBasePath(hdr http.Header) {
 
 }
 
+// Creates a function that generates DataCasters for fetching data.
+// It uses circular indexing to reuse existing DataCasters.
 func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 	var (
@@ -393,7 +417,8 @@ func (d *Download) DataCasterGenerator() func() (DataCaster, error) {
 
 }
 
-// copyWithRetry attempts to copy data from a DataCaster to the file I/O with retry logic.
+// Attempts to copy data from the source to the destination with retries.
+// It implements exponential backoff for retry delays.
 func (e *endpoint) copyWithRetry(retries int) (err error) {
 
 	go func() {

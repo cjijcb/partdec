@@ -8,7 +8,7 @@ import (
 
 var (
 	opt = DLOptions{
-		URI:       "https://www.githubstatus.com",
+		URI:       "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
 		BasePath:  "example.html",
 		DstDirs:   []string{"test/dira", "test/dirb"},
 		PartCount: 0,
