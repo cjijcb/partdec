@@ -35,7 +35,7 @@ type (
 )
 
 const (
-	UserAgent = "partdec/0.4.1"
+	UserAgent = "partdec/0.4.2"
 )
 
 var (
