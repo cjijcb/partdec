@@ -1,6 +1,6 @@
 module github.com/cjijcb/partdec
 
-go 1.22.8
+go 1.25
 
 require (
 	golang.org/x/sys v0.26.0
